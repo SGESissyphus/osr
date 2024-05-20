@@ -130,8 +130,8 @@ struct http_server::impl {
       case search_profile::kCar:
         p = route(w_, l_, get_dijkstra<car>(), from, to, max, direction);
         break;
-      case search_profile::kDrive_Walk:
-        p = route(w_, l_, get_dijkstra<parking>(), from, to, max, direction);
+      case search_profile::kParking:
+        p = route(w_, l_, get_dijkstra<parking<true>>(), from, to, max, direction);
         break;
       default: throw utl::fail("not implemented");
     }

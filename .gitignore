@@ -868,3 +868,13 @@ cmake-build-debug/dl/pkg
 cmake-build-debug/generated/test_dir.h
 cmake-build-debug/Testing/Temporary/LastTest.log
 .gitignore
+build/CMakeFiles/3.29.3/CMakeASMCompiler.cmake
+build/CMakeFiles/3.29.3/CMakeCCompiler.cmake
+build/CMakeFiles/3.29.3/CMakeCXXCompiler.cmake
+build/CMakeFiles/3.29.3/CMakeDetermineCompilerABI_C.bin
+build/CMakeFiles/3.29.3/CMakeDetermineCompilerABI_CXX.bin
+build/CMakeFiles/3.29.3/CMakeSystem.cmake
+build/CMakeFiles/3.29.3/CompilerIdC/a.out
+build/CMakeFiles/3.29.3/CompilerIdC/CMakeCCompilerId.c
+build/CMakeFiles/3.29.3/CompilerIdCXX/a.out
+build/CMakeFiles/3.29.3/CompilerIdCXX/CMakeCXXCompilerId.cpp
