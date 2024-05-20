@@ -22,6 +22,7 @@ enum class search_profile : std::uint8_t {
   kWheelchair,
   kBike,
   kCar,
+  kDrive_Walk,
 };
 
 search_profile to_profile(std::string_view s);
@@ -57,6 +58,7 @@ std::string_view to_str(search_profile const p) {
     case search_profile::kWheelchair: return "wheelchair";
     case search_profile::kCar: return "car";
     case search_profile::kBike: return "bike";
+    case search_profile::kDrive_Walk: return "drive_walk";
   }
   throw utl::fail("{} is not a valid profile", static_cast<std::uint8_t>(p));
 }

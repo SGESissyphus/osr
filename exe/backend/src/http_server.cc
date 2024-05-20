@@ -23,6 +23,7 @@
 #include "osr/routing/profiles/bike.h"
 #include "osr/routing/profiles/car.h"
 #include "osr/routing/profiles/foot.h"
+#include "osr/routing/profiles/parking.h"
 #include "osr/routing/route.h"
 
 using namespace net;
@@ -128,6 +129,9 @@ struct http_server::impl {
         break;
       case search_profile::kCar:
         p = route(w_, l_, get_dijkstra<car>(), from, to, max, direction);
+        break;
+      case search_profile::kDrive_Walk:
+        p = route(w_, l_, get_dijkstra<parking>(), from, to, max, direction);
         break;
       default: throw utl::fail("not implemented");
     }
