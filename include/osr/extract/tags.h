@@ -107,15 +107,15 @@ struct tags {
     }
   }
 
-  //https://wiki.openstreetmap.org/wiki/DE:Tag:amenity%3Dparking
-  bool is_parking_;
-
   // https://wiki.openstreetmap.org/wiki/Key:oneway
   // https://wiki.openstreetmap.org/wiki/Tag:junction=roundabout
   bool oneway_{false};
 
   // https://wiki.openstreetmap.org/wiki/Key:oneway:bicycle
   bool not_oneway_bike_{false};
+
+  //https://wiki.openstreetmap.org/wiki/DE:Tag:amenity%3Dparking
+  bool is_parking_;
 
   // https://wiki.openstreetmap.org/wiki/Key:barrier
   std::string_view barrier_;
@@ -146,6 +146,7 @@ struct tags {
 
   // https://wiki.openstreetmap.org/wiki/Key:name
   std::string_view name_;
+
 
   // https://wiki.openstreetmap.org/wiki/Key:vehicle
   bool is_destination_{false};

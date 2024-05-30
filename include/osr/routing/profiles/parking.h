@@ -176,7 +176,8 @@ struct parking {
                              node_cost_drive(target_node_prop) +
                              (is_u_turn ? kUturnPenalty : 0U);
           if(w.node_properties_[target_node].is_parking_){
-            auto const target_unparked = node{target_node, w.get_way_pos(target_node, way), n.dir, false}; //where lvl_?
+            // TODO what happens to lvl_ for target_unparked?
+            auto const target_unparked = node{target_node, w.get_way_pos(target_node, way), n.dir, false};
             auto const target_parked = node{target_node, w.get_way_pos(target_node, way), n.dir, true};
             fn(target_unparked, cost, dist, way, from, to);
             fn(target_parked, cost, dist, way, from, to);
