@@ -111,6 +111,7 @@ std::pair<node_properties, level_bits_t> get_node_properties(
   p.is_entrance_ = t.is_entrance_;
   p.is_multi_level_ = is_multi;
   p.to_level_ = to_idx(to);
+  p.is_parking_ = t.is_parking_;
   return {p, t.level_bits_};
 }
 

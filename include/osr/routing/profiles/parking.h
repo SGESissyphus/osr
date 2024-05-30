@@ -4,11 +4,9 @@
 
 namespace osr {
 
-// dürfen wir davon ausgehen, dass Autofahrer != Rollstuhlfahrer sind?
 template <bool IsWheelchair>
+// add a bool for walk/drive here or in struct?
 
-// kUturnPenalty needs to be added to the foot struct
-// rename to parking struct
 struct parking {
   static constexpr auto const kUturnPenalty = cost_t{120U};
   static constexpr auto const kMaxMatchDistance = 200U;

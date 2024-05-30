@@ -110,7 +110,7 @@ struct tags {
   bool not_oneway_bike_{false};
 
   //https://wiki.openstreetmap.org/wiki/DE:Tag:amenity%3Dparking
-  std::string_view is_parking_;
+  bool is_parking_;
 
   // https://wiki.openstreetmap.org/wiki/Key:barrier
   std::string_view barrier_;
