@@ -103,11 +103,12 @@ struct node_properties {
   bool is_elevator_ : 1;
   bool is_entrance_ : 1;
   bool is_multi_level_ : 1;
+  bool is_parking_ : 1;
 
   std::uint8_t to_level_ : 5;
 };
 
-static_assert(sizeof(node_properties) == 2);
+static_assert(sizeof(node_properties) == 3);
 
 struct ways {
   ways(std::filesystem::path p, cista::mmap::protection const mode)

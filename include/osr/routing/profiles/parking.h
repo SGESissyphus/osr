@@ -11,32 +11,29 @@ template <bool IsWheelchair>
 // rename to parking struct
 struct parking {
   static constexpr auto const kUturnPenalty = cost_t{120U};
-  static constexpr auto const kMaxMatchDistance = 200U;
+  static constexpr auto const kMaxMatchDistance = 150U;
   static constexpr auto const kOffroadPenalty = 3U;
 
   struct node {
     friend bool operator==(node, node) = default;
 
-    // .dir = direction::kForward is missing
-    // .way_ = 0U is missing
     static constexpr node invalid() noexcept {
-      return {.n_ = node_idx_t::invalid(), .lvl_{level_t::invalid()}};
+      return {.n_ = node_idx_t::invalid(), .lvl_{level_t::invalid(), .way_ = 0U, .dir_ = direction::kForward}};
     }
 
     constexpr node_idx_t get_node() const noexcept { return n_; }
     constexpr node get_key() const noexcept { return *this; }
 
-    //return out << "(node=" << w.node_to_osm_[n_] << ", dir=" << to_str(dir_)
-    //           << ", way=" << w.way_osm_idx_[w.node_ways_[n_][way_]] << ")";
     std::ostream& print(std::ostream& out, ways const& w) const {
       return out << "(node=" << w.node_to_osm_[n_]
-                 << ", level=" << to_float(lvl_) << ")";
+                 << ", level=" << to_float(lvl_)
+                 << ", dir=" << to_str(dir_)
+                 << ", way=" << w.way_osm_idx_[w.node_ways_[n_][way_]] << ")";
     }
-
     node_idx_t n_;
     level_t lvl_;
-    // way_pos_t way_;
-    // direction dir_;
+    way_pos_t way_;
+    direction dir_;
   };
 
   // there are different keys used in foot and car
@@ -44,9 +41,6 @@ struct parking {
 
   // what exactly is an entry?
   struct entry {
-    // kMaxWays is missing
-    // kN is missing
-
     constexpr std::optional<node> pred(node) const noexcept {
       // car uses an index to get the pred, foot uses the node directly
       return pred_ == node_idx_t::invalid()
