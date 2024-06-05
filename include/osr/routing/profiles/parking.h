@@ -16,13 +16,14 @@ struct parking {
 
   struct node {
     friend bool operator==(node, node) = default;
+    bool is_foot = false;
 
     static constexpr node invalid() noexcept {
-      return {.n_ = node_idx_t::invalid(), .lvl_{level_t::invalid(), .way_ = 0U, .dir_ = direction::kForward}};
+      return {is_foot ? .n_ = node_idx_t::invalid(), .lvl_{level_t::invalid()} : .n_ = node_idx_t::invalid(), .way_ = 0U, .dir_ = direction::kForward};
     }
 
     constexpr node_idx_t get_node() const noexcept { return n_; }
-    constexpr node get_key() const noexcept { return *this; }
+    constexpr node get_key() const noexcept { is_foot ? return *this : return n_; }
 
     std::ostream& print(std::ostream& out, ways const& w) const {
       return out << "(node=" << w.node_to_osm_[n_]

@@ -432,3 +432,13 @@ ui/web/js/deps/Leaflet.PolylineMeasure.js
 CMakePresets.json
 CMakePresets.json
 .vscode/settings.json
+build/CMakeFiles/3.29.3/CMakeASMCompiler.cmake
+build/CMakeFiles/3.29.3/CMakeSystem.cmake
+build/CMakeFiles/3.29.3/CompilerIdC/a.out
+build/CMakeFiles/3.29.3/CompilerIdC/CMakeCCompilerId.c
+build/CMakeFiles/3.29.3/CompilerIdCXX/a.out
+build/CMakeFiles/3.29.3/CompilerIdCXX/CMakeCXXCompilerId.cpp
+build/CMakeFiles/3.29.3/CMakeCCompiler.cmake
+build/CMakeFiles/3.29.3/CMakeCXXCompiler.cmake
+build/CMakeFiles/3.29.3/CMakeDetermineCompilerABI_C.bin
+build/CMakeFiles/3.29.3/CMakeDetermineCompilerABI_CXX.bin
