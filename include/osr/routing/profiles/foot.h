@@ -5,6 +5,7 @@
 namespace osr {
 
 template <bool IsWheelchair>
+
 struct foot {
   static constexpr auto const kMaxMatchDistance = 100U;
   static constexpr auto const kOffroadPenalty = 3U;

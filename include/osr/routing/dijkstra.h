@@ -64,8 +64,9 @@ struct dijkstra {
     dir == direction::kForward ? run<direction::kForward>(w, max)
                                : run<direction::kBackward>(w, max);
   }
-
+  // pq = the nodes to visit
   dial<label, get_bucket> pq_{get_bucket{}};
+  //map cost
   ankerl::unordered_dense::map<key, entry, hash> cost_;
 };
 

@@ -13,17 +13,16 @@ struct parking {
   static constexpr auto const kUturnPenalty = cost_t{120U};
   static constexpr auto const kMaxMatchDistance = 150U;
   static constexpr auto const kOffroadPenalty = 3U;
-  
 
   struct node {
     friend bool operator==(node, node) = default;
 
-    static constexpr node invalid() noexcept {;
-      return {.n_ = node_idx_t::invalid(), .lvl_{level_t::invalid()}, .way_ = 0U, .dir_ = direction::kForward, .is_parked_ = false};
+    static constexpr node invalid() noexcept {
+      return {.n_ = node_idx_t::invalid(), .lvl_{level_t::invalid(), .way_ = 0U, .dir_ = direction::kForward}};
     }
 
     constexpr node_idx_t get_node() const noexcept { return n_; }
-    constexpr node get_key() const noexcept { is_parked_ ? return *this : return n_; }
+    constexpr node get_key() const noexcept { return *this; }
 
     std::ostream& print(std::ostream& out, ways const& w) const {
       return out << "(node=" << w.node_to_osm_[n_]
@@ -162,6 +161,7 @@ struct parking {
           return;
         }
 
+        auto const node_prop = w.node_properties_[n];
         if(!isparked){
           auto const is_u_turn = way_pos_t{i} == n.way_ && way_dir == opposite(n.dir_);
           auto const dist = w.way_node_dist_[way][std::min(from, to)];
@@ -169,11 +169,17 @@ struct parking {
           auto const cost  = way_cost(target_way_prop, way_dir, dist) +
                              node_cost(target_node_prop) +
                              (is_u_turn ? kUturnPenalty : 0U);
-          fn(target, cost, dist, way, from, to);
+          if(w.node_properties_[target_node].is_parking_){
+            auto const target_unparked = node{target_node, w.get_way_pos(target_node, way), n.dir, false}; //where lvl_?
+            auto const target_parked = node{target_node, w.get_way_pos(target_node, way), n.dir, true};
+            fn(target_unparked, cost, dist, way, from, to);
+            fn(target_parked, cost, dist, way, from, to);
+          }
+          else{
+            fn(target, cost, dist, way, from, to);
+          }
 
         } else {
-
-        // changes happen here:
           if (can_use_elevator(w, target_node, n.lvl_)) {
             for_each_elevator_level(
                 w, target_node, [&](level_t const target_lvl) {
@@ -196,6 +202,7 @@ struct parking {
         }
       };
 
+      //why OU?
       if (i != 0U) {
         expand(flip<SearchDir>(direction::kBackward), i, i - 1);
       }
