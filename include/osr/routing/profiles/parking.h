@@ -174,24 +174,25 @@ struct parking {
         } else {
 
         // changes happen here:
-        if (can_use_elevator(w, target_node, n.lvl_)) {
-          for_each_elevator_level(
-              w, target_node, [&](level_t const target_lvl) {
-                auto const dist = w.way_node_dist_[way][std::min(from, to)];
-                auto const cost = way_cost(target_way_prop, way_dir, dist) +
-                                  node_cost(target_node_prop);
-                fn(node{target_node, target_lvl}, cost, dist, way, from, to);
-              });
-        } else {
-          auto const target_lvl = get_target_level(w, n.n_, n.lvl_, way);
-          if (!target_lvl.has_value()) {
-            return;
-          }
+          if (can_use_elevator(w, target_node, n.lvl_)) {
+            for_each_elevator_level(
+                w, target_node, [&](level_t const target_lvl) {
+                  auto const dist = w.way_node_dist_[way][std::min(from, to)];
+                  auto const cost = way_cost(target_way_prop, way_dir, dist) +
+                                    node_cost(target_node_prop);
+                  fn(node{target_node, target_lvl}, cost, dist, way, from, to);
+                });
+          } else {
+            auto const target_lvl = get_target_level(w, n.n_, n.lvl_, way);
+            if (!target_lvl.has_value()) {
+              return;
+            }
 
-          auto const dist = w.way_node_dist_[way][std::min(from, to)];
-          auto const cost = way_cost(target_way_prop, way_dir, dist) +
-                            node_cost(target_node_prop);
-          fn(node{target_node, *target_lvl}, cost, dist, way, from, to);
+            auto const dist = w.way_node_dist_[way][std::min(from, to)];
+            auto const cost = way_cost(target_way_prop, way_dir, dist) +
+                              node_cost(target_node_prop);
+            fn(node{target_node, *target_lvl}, cost, dist, way, from, to);
+          }
         }
       };
 
