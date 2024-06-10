@@ -31,11 +31,12 @@ struct parking {
                  << ", dir=" << to_str(dir_)
                  << ", way=" << w.way_osm_idx_[w.node_ways_[n_][way_]] << ")";
     }
-    bool is_parked_;
+    
     node_idx_t n_;
     level_t lvl_;
     way_pos_t way_;
     direction dir_;
+    bool is_parked_;
   };
 
   // there are different keys used in foot and car
@@ -149,7 +150,11 @@ struct parking {
                               std::uint16_t const to) {
         auto const target_node = w.way_nodes_[way][to];
         auto const target_node_prop = w.node_properties_[target_node];
-        if (node_cost(target_node_prop) == kInfeasible) {
+        if (isparked && node_cost_walk(target_node_prop) == kInfeasible) {
+          return;
+        }
+
+        if(!isparked && node_cost_drive(target_node_prop) == kInfeasible){
           return;
         }
 
@@ -158,28 +163,29 @@ struct parking {
           return;
         }
 
-        if(!isparked && w.is_restricted<SearchDir>(n.n_, n.way_, way_pos_t{i})) {
+        if(isparked && w.is_restricted<SearchDir>(n.n_, n.way_, way_pos_t{i})) {
           return;
         }
 
+        //checks if routing already switched to foot and uses expected costs
         if(!isparked){
           auto const is_u_turn = way_pos_t{i} == n.way_ && way_dir == opposite(n.dir_);
           auto const dist = w.way_node_dist_[way][std::min(from, to)];
           auto const target = node{target_node, w.get_way_pos(target_node, way), way_dir};
           auto const cost  = way_cost(target_way_prop, way_dir, dist) +
-                             node_cost(target_node_prop) +
+                             node_cost_drive(target_node_prop) +
                              (is_u_turn ? kUturnPenalty : 0U);
           fn(target, cost, dist, way, from, to);
 
         } else {
 
-        // changes happen here:
+      
           if (can_use_elevator(w, target_node, n.lvl_)) {
             for_each_elevator_level(
                 w, target_node, [&](level_t const target_lvl) {
                   auto const dist = w.way_node_dist_[way][std::min(from, to)];
                   auto const cost = way_cost(target_way_prop, way_dir, dist) +
-                                    node_cost(target_node_prop);
+                                    node_cost_walk(target_node_prop);
                   fn(node{target_node, target_lvl}, cost, dist, way, from, to);
                 });
           } else {
@@ -190,7 +196,7 @@ struct parking {
 
             auto const dist = w.way_node_dist_[way][std::min(from, to)];
             auto const cost = way_cost(target_way_prop, way_dir, dist) +
-                              node_cost(target_node_prop);
+                              node_cost_walk(target_node_prop);
             fn(node{target_node, *target_lvl}, cost, dist, way, from, to);
           }
         }
@@ -212,18 +218,32 @@ struct parking {
                            direction const way_dir,
                            direction const search_dir) {
     auto const target_way_prop = w.way_properties_[way];
-    if (way_cost(
-            target_way_prop,
-            search_dir == direction::kForward ? way_dir : opposite(way_dir),
-            0U) == kInfeasible) {
-      return false;
-    }
 
-    if (!get_target_level(w, n.n_, n.lvl_, way).has_value()) {
-      return false;
-    }
+    bool isparked = n.is_parked_;
 
-    return true;
+    if(!isparked){
+      if (way_cost(
+              target_way_prop,
+              search_dir == direction::kForward ? way_dir : opposite(way_dir),
+              0U) == kInfeasible) {
+        return false;
+      }
+
+      if (!get_target_level(w, n.n_, n.lvl_, way).has_value()) {
+        return false;
+      }
+
+      return true;
+    }
+    else {
+      if(way_cost(target_way_prop, way_dir, 0U) == kInfeasible){
+        return false;
+      }
+      if(w.is_restricted(n.n_, n.way_, w.get_way_pos(n.n_, way), search_dir)){
+        return false;
+      }
+      return true;
+    }
   }
 
   static std::optional<level_t> get_target_level(ways const& w,
@@ -256,7 +276,7 @@ struct parking {
     }
   }
 
-  // needed???
+  // needed??? why do we have it twice?
   static bool can_use_elevator(ways const& w,
                                way_idx_t const way,
                                level_t const a,
@@ -321,9 +341,13 @@ struct parking {
   }
 
   // combine with car node_cost
-  static constexpr cost_t node_cost(node_properties const n) {
+  static constexpr cost_t node_cost_walk(node_properties const n) {
     return n.is_walk_accessible() ? (n.is_elevator() ? 90U : 0U) : kInfeasible;
   }
+
+  static constexpr cost_t node_cost_drive(node_properties const& n) {
+    return n.is_car_accessible() ? 0U : kInfeasible;
+  }  
 };
 
 }  // namespace osr
