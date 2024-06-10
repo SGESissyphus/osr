@@ -13,17 +13,17 @@ struct parking {
   static constexpr auto const kUturnPenalty = cost_t{120U};
   static constexpr auto const kMaxMatchDistance = 150U;
   static constexpr auto const kOffroadPenalty = 3U;
+  
 
   struct node {
     friend bool operator==(node, node) = default;
-    bool is_foot = false;
 
-    static constexpr node invalid() noexcept {
-      return {is_foot ? .n_ = node_idx_t::invalid(), .lvl_{level_t::invalid()} : .n_ = node_idx_t::invalid(), .way_ = 0U, .dir_ = direction::kForward};
+    static constexpr node invalid() noexcept {;
+      return {.n_ = node_idx_t::invalid(), .lvl_{level_t::invalid()}, .way_ = 0U, .dir_ = direction::kForward, .is_parked_ = false};
     }
 
     constexpr node_idx_t get_node() const noexcept { return n_; }
-    constexpr node get_key() const noexcept { is_foot ? return *this : return n_; }
+    constexpr node get_key() const noexcept { is_parked_ ? return *this : return n_; }
 
     std::ostream& print(std::ostream& out, ways const& w) const {
       return out << "(node=" << w.node_to_osm_[n_]
@@ -31,6 +31,7 @@ struct parking {
                  << ", dir=" << to_str(dir_)
                  << ", way=" << w.way_osm_idx_[w.node_ways_[n_][way_]] << ")";
     }
+    bool is_parked_;
     node_idx_t n_;
     level_t lvl_;
     way_pos_t way_;
@@ -139,6 +140,9 @@ struct parking {
 
   template <direction SearchDir, typename Fn>
   static void adjacent(ways const& w, node const n, Fn&& fn) {
+
+    bool isparked = n.is_parked_;
+
     for (auto const [way, i] :
          utl::zip_unchecked(w.node_ways_[n.n_], w.node_in_way_idx_[n.n_])) {
       auto const expand = [&](direction const way_dir, std::uint16_t const from,
@@ -153,6 +157,21 @@ struct parking {
         if (way_cost(target_way_prop, way_dir, 0U) == kInfeasible) {
           return;
         }
+
+        if(!isparked && w.is_restricted<SearchDir>(n.n_, n.way_, way_pos_t{i})) {
+          return;
+        }
+
+        if(!isparked){
+          auto const is_u_turn = way_pos_t{i} == n.way_ && way_dir == opposite(n.dir_);
+          auto const dist = w.way_node_dist_[way][std::min(from, to)];
+          auto const target = node{target_node, w.get_way_pos(target_node, way), way_dir};
+          auto const cost  = way_cost(target_way_prop, way_dir, dist) +
+                             node_cost(target_node_prop) +
+                             (is_u_turn ? kUturnPenalty : 0U);
+          fn(target, cost, dist, way, from, to);
+
+        } else {
 
         // changes happen here:
         if (can_use_elevator(w, target_node, n.lvl_)) {
