@@ -150,14 +150,6 @@ struct parking {
                               std::uint16_t const to) {
         auto const target_node = w.way_nodes_[way][to];
         auto const target_node_prop = w.node_properties_[target_node];
-        if (isparked && node_cost_walk(target_node_prop) == kInfeasible) {
-          return;
-        }
-
-        if(!isparked && node_cost_drive(target_node_prop) == kInfeasible){
-          return;
-        }
-
         auto const target_way_prop = w.way_properties_[way];
         if (way_cost(target_way_prop, way_dir, 0U) == kInfeasible) {
           return;
@@ -169,10 +161,13 @@ struct parking {
 
         auto const node_prop = w.node_properties_[n];
         if(!isparked){
+          if(!isparked && node_cost_drive(target_node_prop) == kInfeasible){
+            return;
+          }          
           auto const is_u_turn = way_pos_t{i} == n.way_ && way_dir == opposite(n.dir_);
           auto const dist = w.way_node_dist_[way][std::min(from, to)];
           auto const target = node{target_node, w.get_way_pos(target_node, way), way_dir};
-          auto const cost  = way_cost(target_way_prop, way_dir, dist) +
+          auto const cost  = way_cost_drive(target_way_prop, way_dir, dist) +
                              node_cost_drive(target_node_prop) +
                              (is_u_turn ? kUturnPenalty : 0U);
           if(w.node_properties_[target_node].is_parking_){
@@ -190,7 +185,7 @@ struct parking {
             for_each_elevator_level(
                 w, target_node, [&](level_t const target_lvl) {
                   auto const dist = w.way_node_dist_[way][std::min(from, to)];
-                  auto const cost = way_cost(target_way_prop, way_dir, dist) +
+                  auto const cost = way_cost_walk(target_way_prop, way_dir, dist) +
                                     node_cost_walk(target_node_prop);
                   fn(node{target_node, target_lvl}, cost, dist, way, from, to);
                 });
@@ -201,7 +196,7 @@ struct parking {
             }
 
             auto const dist = w.way_node_dist_[way][std::min(from, to)];
-            auto const cost = way_cost(target_way_prop, way_dir, dist) +
+            auto const cost = way_cost_walk(target_way_prop, way_dir, dist) +
                               node_cost_walk(target_node_prop);
             fn(node{target_node, *target_lvl}, cost, dist, way, from, to);
           }
@@ -229,7 +224,7 @@ struct parking {
     bool isparked = n.is_parked_;
 
     if(!isparked){
-      if (way_cost(
+      if (way_cost_drive(
               target_way_prop,
               search_dir == direction::kForward ? way_dir : opposite(way_dir),
               0U) == kInfeasible) {
@@ -243,7 +238,7 @@ struct parking {
       return true;
     }
     else {
-      if(way_cost(target_way_prop, way_dir, 0U) == kInfeasible){
+      if(way_cost_walk(target_way_prop, way_dir, 0U) == kInfeasible){
         return false;
       }
       if(w.is_restricted(n.n_, n.way_, w.get_way_pos(n.n_, way), search_dir)){
@@ -337,7 +332,7 @@ struct parking {
   }
 
   // different costs for car and foot, what happens by changing to foot after car?
-  static constexpr cost_t way_cost(way_properties const e,
+  static constexpr cost_t way_cost_walk(way_properties const e,
                                    direction,
                                    std::uint16_t const dist) {
     if (e.is_foot_accessible() && (!IsWheelchair || !e.is_steps())) {
@@ -347,7 +342,14 @@ struct parking {
     }
   }
 
-  // combine with car node_cost
+  static constexpr cost_t way_cost_drive(way_properties const& e, direction const dir, std::uint16_t const dist){
+    if(e.is_car_accessible() && (dir == direction::kForward || !e.is_oneway_())){
+      return (dist / e.max_speed_m_per_s()) * (e.is_destination() ? 5U : 1U) + (e.is_destination() ? 120U : 0U);
+    } else {
+      return kInfeasible;
+    }
+  }
+
   static constexpr cost_t node_cost_walk(node_properties const n) {
     return n.is_walk_accessible() ? (n.is_elevator() ? 90U : 0U) : kInfeasible;
   }
