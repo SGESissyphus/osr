@@ -63,7 +63,7 @@ struct parking {
     // car uses an index to get the cost and pred_way_ and pred_dir_ additionally
     constexpr bool update(node const n, cost_t const c, node const pred) noexcept {
       auto const idx = get_index(n);
-      if (c < cost_) {
+      if (c < cost_[idx]) {
         cost_[idx] = c;
         pred_[idx] = pred.n_;
         pred_way_[idx] = pred.way_;
@@ -106,11 +106,9 @@ struct parking {
 
   struct hash {
     using is_avalanching = void;
-    auto operator()(node const n) const noexcept -> std::uint64_t {
+    auto operator()(key const n) const noexcept -> std::uint64_t {
       using namespace ankerl::unordered_dense::detail;
-      return wyhash::mix(
-          wyhash::hash(static_cast<std::uint64_t>(to_idx(n.lvl_))),
-          wyhash::hash(static_cast<std::uint64_t>(to_idx(n.n_))));  // car only needs to_idx(n) insted of to_idx(n.lvl_) and to_idx(n.n_)
+      return wyhash::hash(static_cast<std::uint64_t>(to_idx(n)));
     }
   };
   //going up the level?
@@ -368,7 +366,8 @@ struct parking {
 
   // How can i combine both functions into one cost function? Needs to know if car is parked or not...
   static constexpr cost_t way_cost(way_properties const& e, direction const dir, std::uint16_t const dist){
-    return is_parked ? way_cost_walk(e, dir, dist) : way_cost_drive(e, dir, dist);
+    // return is_parked ? way_cost_walk(e, dir, dist) : way_cost_drive(e, dir, dist);
+    return way_cost_drive(e, dir, dist);
   }
 
   static constexpr cost_t node_cost_walk(node_properties const n) {
