@@ -4,6 +4,7 @@
 /.pkg.mutex
 /osm-data
 /gcc12-toolchain.cmake
+build/*
 build/.ninja_deps
 build/.ninja_log
 build/build.ninja
@@ -878,3 +879,13 @@ build/CMakeFiles/3.29.3/CompilerIdC/a.out
 build/CMakeFiles/3.29.3/CompilerIdC/CMakeCCompilerId.c
 build/CMakeFiles/3.29.3/CompilerIdCXX/a.out
 build/CMakeFiles/3.29.3/CompilerIdCXX/CMakeCXXCompilerId.cpp
+build/CMakeFiles/3.29.6/CMakeASMCompiler.cmake
+build/CMakeFiles/3.29.6/CMakeCCompiler.cmake
+build/CMakeFiles/3.29.6/CMakeCXXCompiler.cmake
+build/CMakeFiles/3.29.6/CMakeDetermineCompilerABI_C.bin
+build/CMakeFiles/3.29.6/CMakeDetermineCompilerABI_CXX.bin
+build/CMakeFiles/3.29.6/CMakeSystem.cmake
+build/CMakeFiles/3.29.6/CompilerIdC/a.out
+build/CMakeFiles/3.29.6/CompilerIdC/CMakeCCompilerId.c
+build/CMakeFiles/3.29.6/CompilerIdCXX/a.out
+build/CMakeFiles/3.29.6/CompilerIdCXX/CMakeCXXCompilerId.cpp
