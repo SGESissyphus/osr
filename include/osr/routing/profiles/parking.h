@@ -25,7 +25,7 @@ struct parking {
     }
 
     constexpr node_idx_t get_node() const noexcept { return n_; }
-    constexpr node get_key() const noexcept { return *this; }
+    constexpr node_idx_t get_key() const noexcept { return n_; }
 
     std::ostream& print(std::ostream& out, ways const& w) const {
       return out << "(node=" << w.node_to_osm_[n_]
@@ -55,7 +55,8 @@ struct parking {
       // car uses an index to get the pred, foot uses the node directly
       return pred_[idx] == node_idx_t::invalid()
                  ? std::nullopt
-                 : std::optional{node{pred_[idx], pred_lvl_[idx], to_dir(pred_dir_[idx])}}; // pred_way_ and pred_dir_ are missing
+                 : std::optional{node{pred_[idx], pred_way_[idx]
+                 ,pred_lvl_, to_dir(pred_dir_[idx])}}; // pred_way_ and pred_dir_ are missing
     }
     // cost saved in node vs cost saved in entry
     constexpr cost_t cost(node const n) const noexcept { return cost_[get_index(n)]; }
@@ -67,7 +68,7 @@ struct parking {
         cost_[idx] = c;
         pred_[idx] = pred.n_;
         pred_way_[idx] = pred.way_;
-        pred_lvl_[idx] = pred.lvl_;
+        pred_lvl_ = pred.lvl_;
         pred_dir_[idx] = to_bool(pred.dir_);
         return true;
       }
@@ -82,12 +83,14 @@ struct parking {
     }
     // get_node() is missing
 
-    // to_bool() is missing
+    static constexpr bool to_bool(direction const d) {
+      return d == direction::kForward ? false : true;
+    }
 
     // node_idk_t not in form of array, array way_pos_t is missing, bitset kn missing, array cost_t is missing
-    node_idx_t pred_{node_idx_t::invalid()};
+    std::array<node_idx_t, kN> pred_;
     level_t pred_lvl_;
-    cost_t cost_{kInfeasible};
+    std::array<cost_t,kN> cost_;
     std::array<way_pos_t, kN> pred_way_;
     std::array<bool, kN> pred_dir_;
 
