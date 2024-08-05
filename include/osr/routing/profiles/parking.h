@@ -14,12 +14,14 @@ struct parking {
   static constexpr auto const kMaxMatchDistance = 150U;
   static constexpr auto const kOffroadPenalty = 3U;
   
+  using key = node_idx_t;
 
   struct node {
     friend bool operator==(node, node) = default;
 
     static constexpr node invalid() noexcept {
-      return {.n_ = node_idx_t::invalid(), .lvl_{level_t::invalid(), .way_ = 0U, .dir_ = direction::kForward}};
+      return node{
+        .n_ = node_idx_t::invalid(), .lvl_{level_t::invalid()}, .way_ = 0U, .dir_ = direction::kForward, .is_parked_ = false};
     }
 
     constexpr node_idx_t get_node() const noexcept { return n_; }
@@ -40,35 +42,45 @@ struct parking {
   };
 
   // there are different keys used in foot and car
-  using key = node;
 
   // what exactly is an entry?
   struct entry {
-    constexpr std::optional<node> pred(node) const noexcept {
+    static constexpr auto const kMaxWays = way_pos_t{16U};
+    static constexpr auto const kN = kMaxWays * 2U /* FWD+BWD */;
+
+    entry() { utl::fill(cost_, kInfeasible); }
+
+    constexpr std::optional   <node> pred(node const n) const noexcept {
+      auto const idx = get_index(n);
       // car uses an index to get the pred, foot uses the node directly
-      return pred_ == node_idx_t::invalid()
+      return pred_[idx] == node_idx_t::invalid()
                  ? std::nullopt
-                 : std::optional{node{pred_, pred_lvl_}}; // pred_way_ and pred_dir_ are missing
+                 : std::optional{node{pred_[idx], pred_lvl_[idx], to_dir(pred_dir_[idx])}}; // pred_way_ and pred_dir_ are missing
     }
     // cost saved in node vs cost saved in entry
-    constexpr cost_t cost(node) const noexcept { return cost_; }
+    constexpr cost_t cost(node const n) const noexcept { return cost_[get_index(n)]; }
 
     // car uses an index to get the cost and pred_way_ and pred_dir_ additionally
-    constexpr bool update(node, cost_t const c, node const pred) noexcept {
+    constexpr bool update(node const n, cost_t const c, node const pred) noexcept {
+      auto const idx = get_index(n);
       if (c < cost_) {
-        cost_ = c;
-        pred_ = pred.n_;
-        pred_lvl_ = pred.lvl_;
+        cost_[idx] = c;
+        pred_[idx] = pred.n_;
+        pred_way_[idx] = pred.way_;
+        pred_lvl_[idx] = pred.lvl_;
+        pred_dir_[idx] = to_bool(pred.dir_);
         return true;
       }
       return false;
     }
+        static constexpr direction to_dir(bool const b) {
+      return b == false ? direction::kForward : direction::kBackward;
+    }
 
+    static constexpr std::size_t get_index(node const n) {
+      return (n.dir_ == direction::kForward ? 0 : 1) * kMaxWays + n.way_;
+    }
     // get_node() is missing
-
-    // get_index() is missing
-
-    // to_dir() is missing
 
     // to_bool() is missing
 
@@ -76,6 +88,9 @@ struct parking {
     node_idx_t pred_{node_idx_t::invalid()};
     level_t pred_lvl_;
     cost_t cost_{kInfeasible};
+    std::array<way_pos_t, kN> pred_way_;
+    std::array<bool, kN> pred_dir_;
+
   };
   // way_ and dir_ are missing
   struct label {
@@ -344,11 +359,16 @@ struct parking {
   }
 
   static constexpr cost_t way_cost_drive(way_properties const& e, direction const dir, std::uint16_t const dist){
-    if(e.is_car_accessible() && (dir == direction::kForward || !e.is_oneway_())){
+    if(e.is_car_accessible() && (dir == direction::kForward || !e.is_oneway_car())){
       return (dist / e.max_speed_m_per_s()) * (e.is_destination() ? 5U : 1U) + (e.is_destination() ? 120U : 0U);
     } else {
       return kInfeasible;
     }
+  }
+
+  // How can i combine both functions into one cost function? Needs to know if car is parked or not...
+  static constexpr cost_t way_cost(way_properties const& e, direction const dir, std::uint16_t const dist){
+    return is_parked ? way_cost_walk(e, dir, dist) : way_cost_drive(e, dir, dist);
   }
 
   static constexpr cost_t node_cost_walk(node_properties const n) {
