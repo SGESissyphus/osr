@@ -250,36 +250,33 @@ struct parking {
     }
   }
 
-  // probably parking spots need to be added here to change the routing
   static bool is_reachable(ways const& w,
                            node const n,
                            way_idx_t const way,
                            direction const way_dir,
                            direction const search_dir) {
     auto const target_way_prop = w.way_properties_[way];
-
     bool isparked = n.is_parked_;
 
     if (!isparked) {
-      if (way_cost_drive(
-              target_way_prop,
-              search_dir == direction::kForward ? way_dir : opposite(way_dir),
-              0U) == kInfeasible) {
-        return false;
-      }
-
-      if (!get_target_level(w, n.n_, n.lvl_, way).has_value()) {
-        return false;
-      }
-
-      return true;
-    } else {
-      if (way_cost_walk(target_way_prop, way_dir, 0U) == kInfeasible) {
+      if (way_cost_drive(target_way_prop,way_dir,0U) == kInfeasible) {
         return false;
       }
       if (w.is_restricted(n.n_, n.way_, w.get_way_pos(n.n_, way), search_dir)) {
         return false;
       }
+      return true;
+    } else {
+      if (way_cost_walk(
+              target_way_prop,
+              search_dir == direction::kForward ? way_dir : opposite(way_dir),
+              0U) == kInfeasible) {
+        return false;
+      }
+      if (!get_target_level(w, n.n_, n.lvl_, way).has_value()) {
+        return false;
+      }
+
       return true;
     }
   }
@@ -314,7 +311,6 @@ struct parking {
     }
   }
 
-  // needed??? why do we have it twice?
   static bool can_use_elevator(ways const& w,
                                way_idx_t const way,
                                level_t const a,
@@ -337,7 +333,6 @@ struct parking {
     }
   }
 
-  // why are there two bools with same name?
   static bool can_use_elevator(ways const& w,
                                node_idx_t const n,
                                level_t const a,
@@ -367,8 +362,6 @@ struct parking {
     return it->second;
   }
 
-  // different costs for car and foot, what happens by changing to foot after
-  // car?
   static constexpr cost_t way_cost_walk(way_properties const e,
                                         direction,
                                         std::uint16_t const dist) {
@@ -391,14 +384,10 @@ struct parking {
     }
   }
 
-  // How can i combine both functions into one cost function? Needs to know if
-  // car is parked or not...
   static constexpr cost_t way_cost(way_properties const& e,
                                    direction const dir,
                                    std::uint16_t const dist) {
-    // return is_parked ? way_cost_walk(e, dir, dist) : way_cost_drive(e, dir,
-    // dist);
-    return way_cost_drive(e, dir, dist);
+    return dir == direction::kForward ? way_cost_drive(e, dir, dist) : way_cost_walk(e, dir, dist);
   }
 
   static constexpr cost_t node_cost_walk(node_properties const n) {
