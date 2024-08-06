@@ -132,6 +132,7 @@ struct parking {
     for (auto i = way_pos_t{0U}; i != ways.size(); ++i) {
       if (ways[i] == way) {
         f(node{n, lvl, i, direction::kForward, false});
+        f(node{n, lvl, i, direction::kForward, false});
         if (lvl == level_t::invalid() ||
             (p.from_level() == lvl || p.to_level() == lvl ||
              can_use_elevator(w, n, lvl))) {
@@ -283,7 +284,6 @@ struct parking {
               0U) == kInfeasible) {
         return false;
       }
-
       if (!get_target_level(w, n.n_, n.lvl_, way).has_value()) {
         return false;
       }
@@ -372,8 +372,6 @@ struct parking {
     return it->second;
   }
 
-  // different costs for car and foot, what happens by changing to foot after
-  // car?
   static constexpr cost_t way_cost_walk(way_properties const e,
                                         direction,
                                         std::uint16_t const dist) {
