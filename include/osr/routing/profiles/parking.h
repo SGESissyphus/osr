@@ -34,16 +34,13 @@ struct parking {
                  << ", way=" << w.way_osm_idx_[w.node_ways_[n_][way_]] << ")";
     }
 
-    node_idx_t n_;  // what does this t stand for?
+    node_idx_t n_;
     level_t lvl_;
     way_pos_t way_;
     direction dir_;
     bool is_parked_;
   };
 
-  // there are different keys used in foot and car
-
-  // what exactly is an entry?
   struct entry {
     static constexpr auto const kMaxWays = way_pos_t{16U};
     static constexpr auto const kN = kMaxWays * 2U /* FWD+BWD */;
@@ -58,13 +55,11 @@ struct parking {
                                       pred_way_[idx], to_dir(pred_dir_[idx]),
                                       n.is_parked_}};
     }
-    // cost saved in node vs cost saved in entry
+
     constexpr cost_t cost(node const n) const noexcept {
       return cost_[get_index(n)];
     }
 
-    // car uses an index to get the cost and pred_way_ and pred_dir_
-    // additionally
     constexpr bool update(node const n,
                           cost_t const c,
                           node const pred) noexcept {
@@ -92,15 +87,13 @@ struct parking {
       return d == direction::kForward ? false : true;
     }
 
-    // node_idk_t not in form of array, array way_pos_t is missing, bitset kn
-    // missing, array cost_t is missing
     std::array<node_idx_t, kN> pred_;
     std::array<level_t, kN> pred_lvl_;
     std::array<way_pos_t, kN> pred_way_;
     std::bitset<kN> pred_dir_;
     std::array<cost_t, kN> cost_;
   };
-  // way_ and dir_ are missing
+
   struct label {
     label(node const n, cost_t const c) : n_{n.n_}, lvl_{n.lvl_}, cost_{c} {}
 
