@@ -131,11 +131,13 @@ struct parking {
     auto const ways = w.node_ways_[n];
     for (auto i = way_pos_t{0U}; i != ways.size(); ++i) {
       if (ways[i] == way) {
-        f(node{n, i, lvl, direction::kForward, false});
+        f(node{n, lvl, i, direction::kForward, false});
         if (lvl == level_t::invalid() ||
             (p.from_level() == lvl || p.to_level() == lvl ||
              can_use_elevator(w, n, lvl))) {
-          f(node{n, i, lvl == level_t::invalid() ? p.from_level() : lvl, direction::kBackward, true});  // is this for going from B to A aka by foot first?
+          f(node{n, lvl == level_t::invalid() ? p.from_level() : lvl, i,
+                 direction::kBackward,
+                 true});  // is this for going from B to A aka by foot first?
         }
       }
     }
@@ -172,7 +174,7 @@ struct parking {
   static void adjacent(ways const& w, node const n, Fn&& fn) {
 
     bool is_parked = n.is_parked_;
-
+    auto way_pos = way_pos_t{0U};
     for (auto const [way, i] :
          utl::zip_unchecked(w.node_ways_[n.n_], w.node_in_way_idx_[n.n_])) {
       auto const expand = [&](direction const way_dir, std::uint16_t const from,
@@ -184,17 +186,15 @@ struct parking {
           return;
         }
 
-        if (is_parked &&
-            w.is_restricted<SearchDir>(n.n_, n.way_, way_pos_t{i})) {
-          return;
-        }
-
         if (!is_parked) {
-          if (!is_parked && node_cost_drive(target_node_prop) == kInfeasible) {
+          if (node_cost_drive(target_node_prop) == kInfeasible) {
+            return;
+          }
+          if (w.is_restricted<SearchDir>(n.n_, n.way_, way_pos)) {
             return;
           }
           auto const is_u_turn =
-              way_pos_t{i} == n.way_ && way_dir == opposite(n.dir_);
+              way_pos == n.way_ && way_dir == opposite(n.dir_);
           auto const dist = w.way_node_dist_[way][std::min(from, to)];
           auto const target =
               node{target_node, n.lvl_, w.get_way_pos(target_node, way),
@@ -202,6 +202,7 @@ struct parking {
           auto const cost = way_cost_drive(target_way_prop, way_dir, dist) +
                             node_cost_drive(target_node_prop) +
                             (is_u_turn ? kUturnPenalty : 0U);
+
           if (w.node_properties_[target_node].is_parking_) {
             // TODO what happens to lvl_ for target_unparked?
             auto const target_unparked =
@@ -224,7 +225,9 @@ struct parking {
                   auto const cost =
                       way_cost_walk(target_way_prop, way_dir, dist) +
                       node_cost_walk(target_node_prop);
-                  fn(node{target_node, target_lvl}, cost, dist, way, from, to);
+                  fn(node{target_node, target_lvl,
+                          w.get_way_pos(target_node, way), n.dir_, true},
+                     cost, dist, way, from, to);
                 });
           } else {
             auto const target_lvl = get_target_level(w, n.n_, n.lvl_, way);
@@ -235,7 +238,9 @@ struct parking {
             auto const dist = w.way_node_dist_[way][std::min(from, to)];
             auto const cost = way_cost_walk(target_way_prop, way_dir, dist) +
                               node_cost_walk(target_node_prop);
-            fn(node{target_node, *target_lvl}, cost, dist, way, from, to);
+            fn(node{target_node, *target_lvl, w.get_way_pos(target_node, way),
+                    n.dir_, true},
+               cost, dist, way, from, to);
           }
         }
       };
@@ -247,10 +252,11 @@ struct parking {
       if (i != w.way_nodes_[way].size() - 1U) {
         expand(flip<SearchDir>(direction::kForward), i, i + 1);
       }
+
+      ++way_pos;
     }
   }
 
-  // probably parking spots need to be added here to change the routing
   static bool is_reachable(ways const& w,
                            node const n,
                            way_idx_t const way,
@@ -258,10 +264,20 @@ struct parking {
                            direction const search_dir) {
     auto const target_way_prop = w.way_properties_[way];
 
-    bool isparked = n.is_parked_;
+    bool is_parked = n.is_parked_;
 
-    if (!isparked) {
-      if (way_cost_drive(
+    if (!is_parked) {
+      if (way_cost_drive(target_way_prop, way_dir, 0U) == kInfeasible) {
+        return false;
+      }
+
+      if (w.is_restricted(n.n_, n.way_, w.get_way_pos(n.n_, way), search_dir)) {
+        return false;
+      }
+
+      return true;
+    } else {
+      if (way_cost_walk(
               target_way_prop,
               search_dir == direction::kForward ? way_dir : opposite(way_dir),
               0U) == kInfeasible) {
@@ -269,15 +285,6 @@ struct parking {
       }
 
       if (!get_target_level(w, n.n_, n.lvl_, way).has_value()) {
-        return false;
-      }
-
-      return true;
-    } else {
-      if (way_cost_walk(target_way_prop, way_dir, 0U) == kInfeasible) {
-        return false;
-      }
-      if (w.is_restricted(n.n_, n.way_, w.get_way_pos(n.n_, way), search_dir)) {
         return false;
       }
       return true;
@@ -314,7 +321,6 @@ struct parking {
     }
   }
 
-  // needed??? why do we have it twice?
   static bool can_use_elevator(ways const& w,
                                way_idx_t const way,
                                level_t const a,
@@ -337,7 +343,6 @@ struct parking {
     }
   }
 
-  // why are there two bools with same name?
   static bool can_use_elevator(ways const& w,
                                node_idx_t const n,
                                level_t const a,
@@ -391,14 +396,11 @@ struct parking {
     }
   }
 
-  // How can i combine both functions into one cost function? Needs to know if
-  // car is parked or not...
   static constexpr cost_t way_cost(way_properties const& e,
                                    direction const dir,
                                    std::uint16_t const dist) {
-    // return is_parked ? way_cost_walk(e, dir, dist) : way_cost_drive(e, dir,
-    // dist);
-    return way_cost_drive(e, dir, dist);
+    return dir == direction::kForward ? way_cost_drive(e, dir, dist)
+                                      : way_cost_walk(e, dir, dist);
   }
 
   static constexpr cost_t node_cost_walk(node_properties const n) {
