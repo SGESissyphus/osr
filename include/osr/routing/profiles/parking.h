@@ -115,7 +115,7 @@ struct parking {
       return wyhash::hash(static_cast<std::uint64_t>(to_idx(n)));
     }
   };
-  // going up the level?
+
   template <typename Fn>
   static void resolve(ways const& w,
                       way_idx_t const way,
@@ -123,14 +123,21 @@ struct parking {
                       level_t const lvl,
                       Fn&& f) {
     auto const p = w.way_properties_[way];
-    if (lvl == level_t::invalid() ||
-        (p.from_level() == lvl || p.to_level() == lvl ||
-         can_use_elevator(w, n, lvl))) {
-      f(node{n, lvl == level_t::invalid() ? p.from_level() : lvl});
+    auto const ways = w.node_ways_[n];
+    for (auto i = way_pos_t{0U}; i != ways.size(); ++i) {
+      if (ways[i] == way) {
+        f(node{n, i, lvl, direction::kForward, false});
+        if (lvl == level_t::invalid() ||
+            (p.from_level() == lvl || p.to_level() == lvl ||
+             can_use_elevator(w, n, lvl))) {
+          f(node{n, i, lvl == level_t::invalid() ? p.from_level() : lvl, direction::kBackward, true});  // is this for going from B to A aka by foot first?
+        }
+      }
     }
   }
 
-  // i don't get what is happening here
+  // this function discovers all possible routes to find the best one
+  // wird in route.h best_candidate get_best aufgerufen
   template <typename Fn>
   static void resolve_all(ways const& w,
                           node_idx_t const n,
