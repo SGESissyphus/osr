@@ -81,7 +81,12 @@ struct parking {
     static constexpr std::size_t get_index(node const n) {
       return (n.dir_ == direction::kForward ? 0 : 1) * kMaxWays + n.way_;
     }
-    // get_node() is missing
+
+    static constexpr node get_node(node_idx_t const n,
+                                   std::size_t const index) {
+      return node{n, static_cast<way_pos_t>(index % kMaxWays),
+                  to_dir((index / kMaxWays) == 0U)};
+    }
 
     static constexpr bool to_bool(direction const d) {
       return d == direction::kForward ? false : true;
