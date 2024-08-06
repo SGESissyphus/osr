@@ -54,8 +54,9 @@ struct parking {
       auto const idx = get_index(n);
       return pred_[idx] == node_idx_t::invalid()
                  ? std::nullopt
-                 : std::optional{node{pred_[idx], pred_way_[idx], pred_lvl_,
-                                      to_dir(pred_dir_[idx])}};
+                 : std::optional{node{pred_[idx], pred_lvl_[idx],
+                                      pred_way_[idx], to_dir(pred_dir_[idx]),
+                                      n.is_parked_}};
     }
     // cost saved in node vs cost saved in entry
     constexpr cost_t cost(node const n) const noexcept {
