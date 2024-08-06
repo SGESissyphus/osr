@@ -131,11 +131,11 @@ struct parking {
     auto const ways = w.node_ways_[n];
     for (auto i = way_pos_t{0U}; i != ways.size(); ++i) {
       if (ways[i] == way) {
-        f(node{n, i, lvl, direction::kForward, false});
+        f(node{n, lvl, i, direction::kForward, false});
         if (lvl == level_t::invalid() ||
             (p.from_level() == lvl || p.to_level() == lvl ||
              can_use_elevator(w, n, lvl))) {
-          f(node{n, i, lvl == level_t::invalid() ? p.from_level() : lvl, direction::kBackward, true});  // is this for going from B to A aka by foot first?
+          f(node{n, lvl == level_t::invalid() ? p.from_level() : lvl, i, direction::kBackward, true});  // is this for going from B to A aka by foot first?
         }
       }
     }
