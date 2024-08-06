@@ -95,13 +95,16 @@ struct parking {
   };
 
   struct label {
-    label(node const n, cost_t const c) : n_{n.n_}, lvl_{n.lvl_}, cost_{c} {}
+    label(node const n, cost_t const c)
+        : n_{n.n_}, way_{n.way_}, lvl_{n.lvl_}, dir_{n.dir_}, cost_{c} {}
 
     constexpr node get_node() const noexcept { return {n_, lvl_}; }
     constexpr cost_t cost() const noexcept { return cost_; }
 
     node_idx_t n_;
+    way_pos_t way_;
     level_t lvl_;
+    direction dir_;
     cost_t cost_;
   };
 
