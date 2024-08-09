@@ -5,3 +5,6 @@
 /.clang-tidy
 /.vs
 /out
+osm-data/hessen-latest.osm.pbf
+gcc12-toolchain.cmake
+.vscode/settings.json
