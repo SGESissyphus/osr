@@ -32,7 +32,7 @@ struct a_star {
     end_loc_t = end_loc;
   }
 
-  static cost_t heuristic(label const l, ways const& w) {
+  cost_t heuristic(label const l, ways const& w) {
     // TODO: get coordinates from a label(node)?
     auto const coord_node = w.get_node_pos(l.n_).as_latlng();
     auto const coord_end = end_loc_t.pos_;
