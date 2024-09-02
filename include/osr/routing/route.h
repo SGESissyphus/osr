@@ -6,6 +6,7 @@
 #include "boost/json/object.hpp"
 
 #include "osr/lookup.h"
+#include "osr/routing/a_star.h"
 #include "osr/routing/dijkstra.h"
 #include "osr/types.h"
 #include "osr/util/infinite.h"
@@ -22,7 +23,11 @@ enum class search_profile : std::uint8_t {
   kCarParkingWheelchair
 };
 
+enum class routing_algorithm : std::uint8_t { kDijkstra, kAStar };
+
 search_profile to_profile(std::string_view);
+
+routing_algorithm to_algorithm(std::string_view);
 
 std::string_view to_str(search_profile);
 
@@ -46,10 +51,14 @@ struct path {
 template <typename Profile>
 dijkstra<Profile>& get_dijkstra();
 
+template <typename Profile>
+a_star<Profile>& get_a_star();
+
 std::vector<std::optional<path>> route(
     ways const&,
     lookup const&,
     search_profile,
+    routing_algorithm,
     location const& from,
     std::vector<location> const& to,
     cost_t max,
@@ -63,6 +72,7 @@ std::vector<std::optional<path>> route(
 std::optional<path> route(ways const&,
                           lookup const&,
                           search_profile,
+                          routing_algorithm,
                           location const& from,
                           location const& to,
                           cost_t max,
@@ -70,4 +80,23 @@ std::optional<path> route(ways const&,
                           double max_match_distance,
                           bitvec<node_idx_t> const* blocked = nullptr);
 
+std::optional<path> route_dijkstra(ways const&,
+                                   lookup const&,
+                                   search_profile,
+                                   location const& from,
+                                   location const& to,
+                                   cost_t max,
+                                   direction,
+                                   double max_match_distance,
+                                   bitvec<node_idx_t> const* blocked = nullptr);
+
+std::optional<path> route_a_star(ways const&,
+                                 lookup const&,
+                                 search_profile,
+                                 location const& from,
+                                 location const& to,
+                                 cost_t max,
+                                 direction,
+                                 double max_match_distance,
+                                 bitvec<node_idx_t> const* blocked = nullptr);
 }  // namespace osr
