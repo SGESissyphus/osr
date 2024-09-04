@@ -411,7 +411,7 @@ std::optional<path> route(ways const& w,
     return *direct;
   }
 
-  a.reset(max, to);
+  a.reset(max, to, to_match);
 
   for (auto const& start : from_match) {
     for (auto const* nc : {&start.left_, &start.right_}) {
@@ -513,7 +513,7 @@ std::vector<std::optional<path>> route(
     return result;
   }
 
-  a.reset(max, to);
+  a.reset(max, to, to_match);
   for (auto const& start : from_match) {
     for (auto const* nc : {&start.left_, &start.right_}) {
       if (nc->valid() && nc->cost_ < max) {

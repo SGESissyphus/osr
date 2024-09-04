@@ -15,10 +15,6 @@ struct a_star {
   using entry = typename Profile::entry;
   using hash = typename Profile::hash;
 
-  // TODO: change lambda with heuristic for adjacency
-  // TODO: min_heap, heuristic an sich implementieren
-  // TODO: drop down menu button for another algorithm
-
   void add_start(label const l) {
     if (cost_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                              node::invalid())) {
@@ -26,10 +22,11 @@ struct a_star {
     }
   }
 
-  void reset(cost_t, location const& end_loc) {
+  void reset(cost_t, location const& end_loc, std::vector<way_candidate> to_match) {
     minHeap_.clear();
     cost_.clear();
     end_loc_t = end_loc;
+    to_match_t = to_match;
   }
 
   cost_t heuristic(label const l, ways const& w) {
@@ -66,10 +63,16 @@ struct a_star {
       std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       auto curr_node_h = minHeap_.back();
       auto l = curr_node_h.l;
-      /*if (l.n_ == end_node_t) {  // TODO: is this comparison legit?
+      bool found = false;
+      for(auto dest : to_match_t){
+        auto curr_label = curr_node_h.l;
+        if (curr_label.n_ == dest.right_.node_ || curr_label.n_ == dest.left_.node_ ) {
+          found = true;
+        }
+      }
+      if (found) {
         break;
-      }*/
-
+      }
       if (get_cost(l.get_node()) < l.cost()) {
         continue;
       }
@@ -112,6 +115,7 @@ struct a_star {
   }
 
   location end_loc_t;
+  std::vector<way_candidate> to_match_t;
   std::vector<node_h> minHeap_;
   ankerl::unordered_dense::map<key, entry, hash> cost_;
 };
