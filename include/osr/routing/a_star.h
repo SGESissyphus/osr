@@ -22,7 +22,9 @@ struct a_star {
     }
   }
 
-  void reset(cost_t, location const& end_loc, std::vector<way_candidate> to_match) {
+  void reset(cost_t,
+             location const& end_loc,
+             std::vector<way_candidate> to_match) {
     minHeap_.clear();
     cost_.clear();
     end_loc_t = end_loc;
@@ -64,10 +66,15 @@ struct a_star {
       auto curr_node_h = minHeap_.back();
       auto l = curr_node_h.l;
       bool found = false;
-      for(auto dest : to_match_t){
-        auto curr_label = curr_node_h.l;
-        if (curr_label.n_ == dest.right_.node_ || curr_label.n_ == dest.left_.node_ ) {
+      for (auto dest : to_match_t) {
+        if (l.n_ == dest.right_.node_) {
+          end_node_label = curr_node_h.l;
           found = true;
+          end_nc = dest.right_;
+        } else if (l.n_ == dest.left_.node_) {
+          end_node_label = curr_node_h.l;
+          found = true;
+          end_nc = dest.left_;
         }
       }
       if (found) {
@@ -113,7 +120,8 @@ struct a_star {
           : run<direction::kBackward, true>(w, r, max, blocked);
     }
   }
-
+  node_candidate end_nc;
+  std::optional<label> end_node_label;
   location end_loc_t;
   std::vector<way_candidate> to_match_t;
   std::vector<node_h> minHeap_;
