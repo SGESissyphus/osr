@@ -150,7 +150,7 @@ double add_path(ways const& w,
 }
 
 template <typename Profile>
-path reconstruct(ways const& w,
+path reconstruct_a(ways const& w,
                  bitvec<node_idx_t> const* blocked,
                  a_star<Profile> const& a,
                  way_candidate const& start,
@@ -332,7 +332,7 @@ best_candidate(ways const& w,
         return;
       }
 
-      auto const target_cost = d.get_cost(node);
+      auto const target_cost = d.get_cost(node); //die Kosten bis zu diesem Node
       if (target_cost == kInfeasible) {
         return;
       }
@@ -434,10 +434,10 @@ std::optional<path> route(ways const& w,
     });
     auto cost = a.end_node_label->cost_;
     auto nc = a.end_nc;
-    return reconstruct<Profile>(w, blocked, a, start, nc, n, cost, dir);
-
+    return reconstruct_a<Profile>(w, blocked, a, start, *nc, n, cost, dir);
     /*
-    auto const c = best_candidate(w, a, to.lvl_, to_match, max, dir);
+    auto const c = best_candidate(w, a, to.lvl_, to_match_, max, dir);
+
     if (c.has_value()) {
       auto const [nc, wc, node, p] = *c;
       return reconstruct<Profile>(w, blocked, a, start, *nc, node, p.cost_,
