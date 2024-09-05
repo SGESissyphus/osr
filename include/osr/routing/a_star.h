@@ -27,14 +27,13 @@ struct a_star {
              std::vector<way_candidate> to_match) {
     minHeap_.clear();
     cost_.clear();
-    end_loc_t = end_loc;
-    to_match_t = to_match;
+    end_loc_ = end_loc;
+    to_match_ = to_match;
   }
 
   cost_t heuristic(label const l, ways const& w) {
-    // TODO: get coordinates from a label(node)?
     auto const coord_node = w.get_node_pos(l.n_).as_latlng();
-    auto const coord_end = end_loc_t.pos_;
+    auto const coord_end = end_loc_.pos_;
     return geo::distance(coord_node, coord_end);
   };
 
@@ -60,13 +59,13 @@ struct a_star {
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
-    while (!minHeap_.empty()) {  // TODO: change to terminate at the end point
+    while (!minHeap_.empty()) {
       std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       auto curr_node_h = minHeap_.back();
       auto l = curr_node_h.l;
       bool found = false;
-      for (auto dest : to_match_t) {
+      for (auto const& dest : to_match_) {
         if (l.n_ == dest.right_.node_) {
           end_node_label = curr_node_h.l;
           found = true;
@@ -80,6 +79,7 @@ struct a_star {
       if (found) {
         break;
       }
+      minHeap_.pop_back();
       if (get_cost(l.get_node()) < l.cost()) {
         continue;
       }
@@ -122,8 +122,8 @@ struct a_star {
   }
   node_candidate end_nc;
   std::optional<label> end_node_label;
-  location end_loc_t;
-  std::vector<way_candidate> to_match_t;
+  location end_loc_;
+  match_t to_match_;
   std::vector<node_h> minHeap_;
   ankerl::unordered_dense::map<key, entry, hash> cost_;
 };
