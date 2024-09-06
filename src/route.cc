@@ -425,25 +425,13 @@ std::optional<path> route(ways const& w,
 
     a.run(w, *w.r_, max, blocked, dir);
 
-    auto node_idx = a.end_node_label->n_;
-    auto n = typename Profile::node{};
-    Profile::resolve_all(*w.r_, node_idx, to.lvl_, [&](auto&& node) {
-      if (node.get_node() == a.end_node_label->n_) {
-        n = node;
-      }
-    });
-    auto cost = a.end_node_label->cost_;
-    auto nc = a.end_nc;
-    return reconstruct_a<Profile>(w, blocked, a, start, *nc, n, cost, dir);
-    /*
-    auto const c = best_candidate(w, a, to.lvl_, to_match_, max, dir);
+    auto const c = best_candidate(w, a, to.lvl_, to_match, max, dir);
 
     if (c.has_value()) {
       auto const [nc, wc, node, p] = *c;
-      return reconstruct<Profile>(w, blocked, a, start, *nc, node, p.cost_,
+      return reconstruct_a<Profile>(w, blocked, a, start, *nc, node, p.cost_,
                                   dir);
     }
-    */
   }
   return std::nullopt;
 }
@@ -500,7 +488,8 @@ std::optional<path> route(ways const& w,
   return std::nullopt;
 }
 
-template <typename Profile>
+
+/*template <typename Profile>
 std::vector<std::optional<path>> route(
     ways const& w,
     lookup const& l,
@@ -565,6 +554,7 @@ std::vector<std::optional<path>> route(
 
   return result;
 }
+*/
 
 template <typename Profile>
 std::vector<std::optional<path>> route(
@@ -653,6 +643,7 @@ a_star<Profile>& get_a_star() {
   }
   return *s.get();
 }
+
 
 std::vector<std::optional<path>> route(
     ways const& w,

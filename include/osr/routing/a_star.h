@@ -59,28 +59,17 @@ struct a_star {
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
-    while (!minHeap_.empty()) {
+    while (!minHeap_.empty() && !to_match_.empty()) {
       std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       auto curr_node_h = minHeap_.back();
       auto l = curr_node_h.l;
-      bool found = false;
-
-      for (auto const& dest : to_match_) {
-        if (l.n_ == dest.right_.node_) {
-          end_node_label = curr_node_h.l;
-          //end_node_label.cost_ = dest.right_.cost_ + end_node_label.cost_;
-          found = true;
-          end_nc = &dest.right_;
-        } else if (l.n_ == dest.left_.node_) {
-          end_node_label = curr_node_h.l;
-          found = true;
-          end_nc = &dest.left_;
-        }
-      }
-      if (found) {
-        break;
-      }
+      to_match_.erase(
+          std::remove_if(to_match_.begin(), to_match_.end(),
+                         [&](auto const& dest) {
+                           return l.n_ == dest.right_.node_ || l.n_ == dest.left_.node_;
+                         }),
+          to_match_.end());
       minHeap_.pop_back();
       if (get_cost(l.get_node()) < l.cost()) {
         continue;
@@ -101,7 +90,6 @@ struct a_star {
               minHeap_.push_back(next_h);
               std::push_heap(minHeap_.begin(), minHeap_.end(),
                              std::greater<node_h>{});
-              // pq_.push(std::move(next)))??
             }
           });
     }
@@ -122,7 +110,6 @@ struct a_star {
           : run<direction::kBackward, true>(w, r, max, blocked);
     }
   }
-  const node_candidate* end_nc;
   std::optional<label> end_node_label;
   location end_loc_;
   match_t to_match_;
