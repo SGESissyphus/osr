@@ -712,6 +712,27 @@ std::optional<path> route_bidirectional_a_star(
     direction const dir,
     double const max_match_distance,
     bitvec<node_idx_t> const* blocked) {
+
+  switch (profile) {
+    case search_profile::kFoot:
+      return route(w, l, get_a_star<foot<false, elevator_tracking>>(), from, to,
+                   max, dir, max_match_distance, blocked);
+    case search_profile::kWheelchair:
+      return route(w, l, get_a_star<foot<true, elevator_tracking>>(), from, to,
+                   max, dir, max_match_distance, blocked);
+    case search_profile::kBike:
+      return route(w, l, get_a_star<bike>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCar:
+      return route(w, l, get_a_star<car>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCarParking:
+      return route(w, l, get_a_star<car_parking<false>>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCarParkingWheelchair:
+      return route(w, l, get_a_star<car_parking<true>>(), from, to, max, dir,
+                   max_match_distance, blocked);
+  }
   throw utl::fail("not implemented");
 }
 

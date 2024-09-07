@@ -103,4 +103,15 @@ std::optional<path> route_a_star(ways const&,
                                  direction,
                                  double max_match_distance,
                                  bitvec<node_idx_t> const* blocked = nullptr);
+
+std::optional<path> route_bidirectional_a_star(
+    ways const&,
+    lookup const&,
+    search_profile,
+    location const& from,
+    location const& to,
+    cost_t max,
+    direction,
+    double max_match_distance,
+    bitvec<node_idx_t> const* blocked = nullptr);
 }  // namespace osr
