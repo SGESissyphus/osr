@@ -6,8 +6,9 @@
 #include "boost/json/object.hpp"
 
 #include "osr/lookup.h"
-#include "osr/routing/a_star.h"
-#include "osr/routing/dijkstra.h"
+#include "osr/routing/algorithms/a_star.h"
+#include "osr/routing/algorithms/a_star_bi.h"
+#include "osr/routing/algorithms/dijkstra.h"
 #include "osr/types.h"
 #include "osr/util/infinite.h"
 #include "osr/util/reverse.h"

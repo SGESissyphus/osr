@@ -6,8 +6,9 @@
 #include "utl/to_vec.h"
 #include "utl/verify.h"
 
-#include "osr/routing/a_star.h"
-#include "osr/routing/dijkstra.h"
+#include "osr/routing/algorithms/a_star.h"
+#include "osr/routing/algorithms/a_star_bi.h"
+#include "osr/routing/algorithms/dijkstra.h"
 #include "osr/routing/profiles/bike.h"
 #include "osr/routing/profiles/car.h"
 #include "osr/routing/profiles/car_parking.h"
@@ -392,6 +393,54 @@ std::optional<path> try_direct(osr::location const& from,
 template <typename Profile>
 std::optional<path> route(ways const& w,
                           lookup const& l,
+                          a_star_bi<Profile>& a,
+                          location const& from,
+                          location const& to,
+                          cost_t const max,
+                          direction const dir,
+                          double const max_match_distance,
+                          bitvec<node_idx_t> const* blocked) {
+  auto const from_match =
+      l.match<Profile>(from, false, dir, max_match_distance, blocked);
+  auto const to_match =
+      l.match<Profile>(to, true, dir, max_match_distance, blocked);
+
+  if (from_match.empty() || to_match.empty()) {
+    return std::nullopt;
+  }
+
+  if (auto const direct = try_direct(from, to); direct.has_value()) {
+    return *direct;
+  }
+
+  a.reset(max, to, to_match);
+
+  for (auto const& start : from_match) {
+    for (auto const* nc : {&start.left_, &start.right_}) {
+      if (nc->valid() && nc->cost_ < max) {
+        Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
+                                    dir, [&](auto const node) {
+                                      a.add_start({node, nc->cost_});
+                                    });
+      }
+    }
+
+    a.run(w, *w.r_, max, blocked, dir);
+
+    auto const c = best_candidate(w, a, to.lvl_, to_match, max, dir);
+
+    if (c.has_value()) {
+      auto const [nc, wc, node, p] = *c;
+      return reconstruct_a<Profile>(w, blocked, a, start, *nc, node, p.cost_,
+                                    dir);
+    }
+  }
+  return std::nullopt;
+}
+
+template <typename Profile>
+std::optional<path> route(ways const& w,
+                          lookup const& l,
                           a_star<Profile>& a,
                           location const& from,
                           location const& to,
@@ -640,6 +689,15 @@ a_star<Profile>& get_a_star() {
   static auto s = boost::thread_specific_ptr<a_star<Profile>>{};
   if (s.get() == nullptr) {
     s.reset(new a_star<Profile>{});
+  }
+  return *s.get();
+}
+
+template <typename Profile>
+a_star_bi<Profile>& get_a_star_bi() {
+  static auto s = boost::thread_specific_ptr<a_star_bi<Profile>>{};
+  if (s.get() == nullptr) {
+    s.reset(new a_star_bi<Profile>{});
   }
   return *s.get();
 }
