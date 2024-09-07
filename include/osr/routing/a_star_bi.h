@@ -3,7 +3,7 @@
 namespace osr {
 
 template <typename Profile>
-struct bidirectional_a_star {
+struct a_star_bi {
   using profile_t = Profile;
   using key = typename Profile::key;
   using label = typename Profile::label;

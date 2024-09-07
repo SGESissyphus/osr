@@ -23,11 +23,7 @@ enum class search_profile : std::uint8_t {
   kCarParkingWheelchair
 };
 
-enum class routing_algorithm : std::uint8_t {
-  kDijkstra,
-  kAStar,
-  kBidirectionalAStar
-};
+enum class routing_algorithm : std::uint8_t { kDijkstra, kAStar, kAStarBi };
 
 search_profile to_profile(std::string_view);
 
@@ -104,7 +100,7 @@ std::optional<path> route_a_star(ways const&,
                                  double max_match_distance,
                                  bitvec<node_idx_t> const* blocked = nullptr);
 
-std::optional<path> route_bidirectional_a_star(
+std::optional<path> route_a_star_bi(
     ways const&,
     lookup const&,
     search_profile,

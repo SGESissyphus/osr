@@ -695,23 +695,22 @@ std::optional<path> route(ways const& w,
     case routing_algorithm::kAStar:
       return route_a_star(w, l, profile, from, to, max, dir, max_match_distance,
                           blocked);
-    case routing_algorithm::kBidirectionalAStar:
-      return route_bidirectional_a_star(w, l, profile, from, to, max, dir,
-                                        max_match_distance, blocked);
+    case routing_algorithm::kAStarBi:
+      return route_a_star_bi(w, l, profile, from, to, max, dir,
+                             max_match_distance, blocked);
   }
   throw utl::fail("not implemented");
 }
 
-std::optional<path> route_bidirectional_a_star(
-    ways const& w,
-    lookup const& l,
-    search_profile const profile,
-    location const& from,
-    location const& to,
-    cost_t const max,
-    direction const dir,
-    double const max_match_distance,
-    bitvec<node_idx_t> const* blocked) {
+std::optional<path> route_a_star_bi(ways const& w,
+                                    lookup const& l,
+                                    search_profile const profile,
+                                    location const& from,
+                                    location const& to,
+                                    cost_t const max,
+                                    direction const dir,
+                                    double const max_match_distance,
+                                    bitvec<node_idx_t> const* blocked) {
 
   switch (profile) {
     case search_profile::kFoot:
