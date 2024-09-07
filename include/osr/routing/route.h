@@ -23,7 +23,11 @@ enum class search_profile : std::uint8_t {
   kCarParkingWheelchair
 };
 
-enum class routing_algorithm : std::uint8_t { kDijkstra, kAStar };
+enum class routing_algorithm : std::uint8_t {
+  kDijkstra,
+  kAStar,
+  kBidirectionalAStar
+};
 
 search_profile to_profile(std::string_view);
 
