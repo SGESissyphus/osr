@@ -151,13 +151,13 @@ double add_path(ways const& w,
 
 template <typename Profile>
 path reconstruct_a(ways const& w,
-                 bitvec<node_idx_t> const* blocked,
-                 a_star<Profile> const& a,
-                 way_candidate const& start,
-                 node_candidate const& dest,
-                 typename Profile::node const dest_node,
-                 cost_t const cost,
-                 direction const dir) {
+                   bitvec<node_idx_t> const* blocked,
+                   a_star<Profile> const& a,
+                   way_candidate const& start,
+                   node_candidate const& dest,
+                   typename Profile::node const dest_node,
+                   cost_t const cost,
+                   direction const dir) {
   auto n = dest_node;
   auto segments = std::vector<path::segment>{{.polyline_ = dest.path_,
                                               .from_level_ = dest.lvl_,
@@ -332,7 +332,8 @@ best_candidate(ways const& w,
         return;
       }
 
-      auto const target_cost = d.get_cost(node); //die Kosten bis zu diesem Node
+      auto const target_cost =
+          d.get_cost(node);  // die Kosten bis zu diesem Node
       if (target_cost == kInfeasible) {
         return;
       }
@@ -418,7 +419,7 @@ std::optional<path> route(ways const& w,
       if (nc->valid() && nc->cost_ < max) {
         Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
                                     dir, [&](auto const node) {
-                                      a.add_start({node, nc->cost_});
+                                      a.add_start({node, nc->cost_}, w);
                                     });
       }
     }
@@ -430,7 +431,7 @@ std::optional<path> route(ways const& w,
     if (c.has_value()) {
       auto const [nc, wc, node, p] = *c;
       return reconstruct_a<Profile>(w, blocked, a, start, *nc, node, p.cost_,
-                                  dir);
+                                    dir);
     }
   }
   return std::nullopt;
@@ -487,7 +488,6 @@ std::optional<path> route(ways const& w,
 
   return std::nullopt;
 }
-
 
 /*template <typename Profile>
 std::vector<std::optional<path>> route(
@@ -643,7 +643,6 @@ a_star<Profile>& get_a_star() {
   }
   return *s.get();
 }
-
 
 std::vector<std::optional<path>> route(
     ways const& w,

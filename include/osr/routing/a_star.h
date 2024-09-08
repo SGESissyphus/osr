@@ -15,10 +15,10 @@ struct a_star {
   using entry = typename Profile::entry;
   using hash = typename Profile::hash;
 
-  void add_start(label const l) {
+  void add_start(label const l, ways const& w) {
     if (cost_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                              node::invalid())) {
-      minHeap_.push_back(node_h{l, 0, 0});
+      minHeap_.push_back(node_h{l, 0, heuristic(l, w)});
     }
   }
 
@@ -34,7 +34,9 @@ struct a_star {
   cost_t heuristic(label const l, ways const& w) {
     auto const coord_node = w.get_node_pos(l.n_).as_latlng();
     auto const coord_end = end_loc_.pos_;
-    return geo::distance(coord_node, coord_end);
+    auto dist = geo::distance(coord_node, coord_end);
+
+    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
   };
 
   struct node_h {
@@ -64,12 +66,12 @@ struct a_star {
       std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       auto curr_node_h = minHeap_.back();
       auto l = curr_node_h.l;
-      to_match_.erase(
-          std::remove_if(to_match_.begin(), to_match_.end(),
-                         [&](auto const& dest) {
-                           return l.n_ == dest.right_.node_ || l.n_ == dest.left_.node_;
-                         }),
-          to_match_.end());
+      to_match_.erase(std::remove_if(to_match_.begin(), to_match_.end(),
+                                     [&](auto const& dest) {
+                                       return l.n_ == dest.right_.node_ ||
+                                              l.n_ == dest.left_.node_;
+                                     }),
+                      to_match_.end());
       minHeap_.pop_back();
       if (get_cost(l.get_node()) < l.cost()) {
         continue;
