@@ -12,14 +12,18 @@ struct a_star_bi {
   using hash = typename Profile::hash;
   using node_h = typename a_star<Profile>::node_h;
 
-  void add_start(label const start, label const end) {
-    if (cost1_[start.get_node().get_key()].update(start, start.get_node(), start.cost(),
-                                                  node::invalid())) {
-      minHeap1_.push_back(node_h{start, 0, 0});
+  void add_start(label const label, bool const firsts_turn) {
+    if (firsts_turn) {
+      if (cost1_[label.get_node().get_key()].update(
+              label, label.get_node(), label.cost(), node::invalid())) {
+        minHeap1_.push_back(node_h{label, 0, 0});
+      }
     }
-    if (cost2_[end.get_node().get_key()].update(end, end.get_node(), end.cost(),
-                                                node::invalid())) {
-      minHeap2_.push_back(node_h{end, 0, 0});
+    else{
+      if (cost2_[label.get_node().get_key()].update(
+              label, label.get_node(), label.cost(), node::invalid())) {
+        minHeap2_.push_back(node_h{label, 0, 0});
+      }
     }
   }
 
@@ -53,9 +57,9 @@ struct a_star_bi {
     auto l = curr_node_h.l;
     heap.pop_back();
 
-    if(other_cost.contains(l.n_))
+    if(other_cost.contains(l.n_)) {
       return true;
-
+    }
     if (get_cost(l.get_node()) < l.cost()) {
       return false;
     }
@@ -78,6 +82,7 @@ struct a_star_bi {
           }
         });
   }
+
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
            ways::routing const& r,
