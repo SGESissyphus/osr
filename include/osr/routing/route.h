@@ -55,6 +55,9 @@ dijkstra<Profile>& get_dijkstra();
 template <typename Profile>
 a_star<Profile>& get_a_star();
 
+template <typename Profile>
+a_star_bi<Profile>& get_a_star_bi();
+
 std::vector<std::optional<path>> route(
     ways const&,
     lookup const&,

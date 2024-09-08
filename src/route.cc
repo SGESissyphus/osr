@@ -259,6 +259,65 @@ std::optional<std::tuple<node_candidate const*,
                          typename Profile::node,
                          path>>
 best_candidate(ways const& w,
+               a_star_bi<Profile>& a,
+               level_t const lvl,
+               match_t const& m,
+               cost_t const max,
+               direction const dir) {
+  auto const get_best = [&](way_candidate const& dest,
+                            node_candidate const* x) {
+    auto best_node = typename Profile::node{};
+    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
+    Profile::resolve_all(*w.r_, x->node_, lvl, [&](auto&& node) {
+      if (!Profile::is_dest_reachable(*w.r_, node, dest.way_,
+                                      flip(opposite(dir), x->way_dir_),
+                                      opposite(dir))) {
+        return;
+      }
+
+      auto const target_cost = a.get_cost(node);
+      if (target_cost == kInfeasible) {
+        return;
+      }
+
+      auto const total_cost = target_cost + x->cost_;
+      if (total_cost < max && total_cost < best_cost.cost_) {
+        best_node = node;
+        best_cost.cost_ = static_cast<cost_t>(total_cost);
+      }
+    });
+    return std::pair{best_node, best_cost};
+  };
+
+  for (auto const& dest : m) {
+    auto best_node = typename Profile::node{};
+    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
+    auto best = static_cast<node_candidate const*>(nullptr);
+
+    for (auto const x : {&dest.left_, &dest.right_}) {
+      if (x->valid() && x->cost_ < max) {
+        auto const [x_node, x_cost] = get_best(dest, x);
+        if (x_cost.cost_ < max && x_cost.cost_ < best_cost.cost_) {
+          best = x;
+          best_node = x_node;
+          best_cost = x_cost;
+        }
+      }
+    }
+
+    if (best != nullptr) {
+      return std::tuple{best, &dest, best_node, best_cost};
+    }
+  }
+  return std::nullopt;
+}
+
+template <typename Profile>
+std::optional<std::tuple<node_candidate const*,
+                         way_candidate const*,
+                         typename Profile::node,
+                         path>>
+best_candidate(ways const& w,
                a_star<Profile>& a,
                level_t const lvl,
                match_t const& m,
@@ -334,8 +393,7 @@ best_candidate(ways const& w,
         return;
       }
 
-      auto const target_cost =
-          d.get_cost(node);
+      auto const target_cost = d.get_cost(node);
       if (target_cost == kInfeasible) {
         return;
       }
@@ -414,7 +472,7 @@ std::optional<path> route(ways const& w,
     return *direct;
   }
 
-  a.reset(max, to, to_match);
+  a.reset(max, from, to);
 
   for (auto const& start : from_match) {
     for (auto const* nc : {&start.left_, &start.right_}) {
@@ -773,22 +831,22 @@ std::optional<path> route_a_star_bi(ways const& w,
 
   switch (profile) {
     case search_profile::kFoot:
-      return route(w, l, get_a_star<foot<false, elevator_tracking>>(), from, to,
-                   max, dir, max_match_distance, blocked);
+      return route(w, l, get_a_star_bi<foot<false, elevator_tracking>>(), from,
+                   to, max, dir, max_match_distance, blocked);
     case search_profile::kWheelchair:
-      return route(w, l, get_a_star<foot<true, elevator_tracking>>(), from, to,
-                   max, dir, max_match_distance, blocked);
+      return route(w, l, get_a_star_bi<foot<true, elevator_tracking>>(), from,
+                   to, max, dir, max_match_distance, blocked);
     case search_profile::kBike:
-      return route(w, l, get_a_star<bike>(), from, to, max, dir,
+      return route(w, l, get_a_star_bi<bike>(), from, to, max, dir,
                    max_match_distance, blocked);
     case search_profile::kCar:
-      return route(w, l, get_a_star<car>(), from, to, max, dir,
+      return route(w, l, get_a_star_bi<car>(), from, to, max, dir,
                    max_match_distance, blocked);
     case search_profile::kCarParking:
-      return route(w, l, get_a_star<car_parking<false>>(), from, to, max, dir,
-                   max_match_distance, blocked);
+      return route(w, l, get_a_star_bi<car_parking<false>>(), from, to, max,
+                   dir, max_match_distance, blocked);
     case search_profile::kCarParkingWheelchair:
-      return route(w, l, get_a_star<car_parking<true>>(), from, to, max, dir,
+      return route(w, l, get_a_star_bi<car_parking<true>>(), from, to, max, dir,
                    max_match_distance, blocked);
   }
   throw utl::fail("not implemented");
@@ -857,6 +915,12 @@ std::optional<path> route_dijkstra(ways const& w,
   }
   throw utl::fail("not implemented");
 }
+
+template a_star_bi<foot<true, osr::noop_tracking>>&
+get_a_star_bi<foot<true, osr::noop_tracking>>();
+
+template a_star_bi<foot<false, osr::noop_tracking>>&
+get_a_star_bi<foot<false, osr::noop_tracking>>();
 
 template a_star<foot<true, osr::noop_tracking>>&
 get_a_star<foot<true, osr::noop_tracking>>();

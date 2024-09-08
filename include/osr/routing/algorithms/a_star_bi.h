@@ -39,6 +39,12 @@ struct a_star_bi {
     ;
   }
 
+  // TODO get_cost not modified for bi-directional
+  cost_t get_cost(node const n) const {
+    auto const it = cost1_.find(n.get_key());
+    return it != end(cost1_) ? it->second.cost(n) : kInfeasible;
+  }
+
   template <direction SearchDir, bool WithBlocked>
   bool run(ways const& w,
            ways::routing const& r,
@@ -92,9 +98,18 @@ struct a_star_bi {
         other_cost = cost1_;
         heap = minHeap2_;
       }
-      auto stop = run(w, r, max, blocked, cost, other_cost, heap);
-      if (stop) {
-        break;
+      if (firsts_turn) {
+        // Search in `SearchDir` direction
+        if (run<SearchDir, WithBlocked>(w, r, max, blocked, cost, other_cost,
+                                        heap)) {
+          break;
+        }
+      } else {
+        // Search in the opposite direction
+        if (run<opposite(SearchDir), WithBlocked>(w, r, max, blocked, cost,
+                                                  other_cost, heap)) {
+          break;
+        }
       }
       firsts_turn = !firsts_turn;
     }
