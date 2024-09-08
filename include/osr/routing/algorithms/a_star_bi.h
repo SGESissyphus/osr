@@ -39,7 +39,8 @@ struct a_star_bi {
   cost_t heuristic(bool const first_turn, label const l, ways const& w) {
     auto const coord_node = w.get_node_pos(l.n_).as_latlng();
     auto const coord_end = first_turn ? end_loc_.pos_ : start_loc_.pos_;
-    return geo::distance(coord_node, coord_end);;
+    return geo::distance(coord_node, coord_end);
+    ;
   }
 
   template <direction SearchDir, bool WithBlocked>
@@ -49,7 +50,7 @@ struct a_star_bi {
            bitvec<node_idx_t> const* blocked,
            ankerl::unordered_dense::map<key, entry, hash> cost,
            ankerl::unordered_dense::map<key, entry, hash> other_cost,
-           std::vector<node_h>& heap){
+           std::vector<node_h>& heap) {
 
     std::make_heap(heap.begin(), heap.end(), std::greater<node_h>{});
     std::pop_heap(heap.begin(), heap.end(), std::greater<node_h>{});
@@ -77,12 +78,10 @@ struct a_star_bi {
             next.track(l, r, way, neighbor.get_node());
             node_h next_h = node_h{next, next.cost_, heuristic(next, w)};
             heap.push_back(next_h);
-            std::push_heap(heap.begin(), heap.end(),
-                           std::greater<node_h>{});
+            std::push_heap(heap.begin(), heap.end(), std::greater<node_h>{});
           }
         });
   }
-
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
            ways::routing const& r,
@@ -99,7 +98,7 @@ struct a_star_bi {
         heap = minHeap2_;
       }
       auto stop = run(w, r, max, blocked, cost, other_cost, heap);
-      if(stop){
+      if (stop) {
         break;
       }
       firsts_turn = !firsts_turn;
