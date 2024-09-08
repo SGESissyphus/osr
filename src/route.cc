@@ -33,6 +33,7 @@ routing_algorithm to_algorithm(std::string_view s) {
   switch (cista::hash(s)) {
     case cista::hash("dijkstra"): return routing_algorithm::kDijkstra;
     case cista::hash("a_star"): return routing_algorithm::kAStar;
+    case cista::hash("a_star_bi"): return routing_algorithm::kAStarBi;
   }
   throw utl::fail("{} is not a valid algorithm", s);
 }
@@ -334,7 +335,7 @@ best_candidate(ways const& w,
       }
 
       auto const target_cost =
-          d.get_cost(node);  // die Kosten bis zu diesem Node
+          d.get_cost(node);
       if (target_cost == kInfeasible) {
         return;
       }
@@ -857,16 +858,16 @@ std::optional<path> route_dijkstra(ways const& w,
   throw utl::fail("not implemented");
 }
 
-template dijkstra<foot<true, osr::noop_tracking>>&
-get_dijkstra<foot<true, osr::noop_tracking>>();
-
-template dijkstra<foot<false, osr::noop_tracking>>&
-get_dijkstra<foot<false, osr::noop_tracking>>();
-
 template a_star<foot<true, osr::noop_tracking>>&
 get_a_star<foot<true, osr::noop_tracking>>();
 
 template a_star<foot<false, osr::noop_tracking>>&
 get_a_star<foot<false, osr::noop_tracking>>();
+
+template dijkstra<foot<true, osr::noop_tracking>>&
+get_dijkstra<foot<true, osr::noop_tracking>>();
+
+template dijkstra<foot<false, osr::noop_tracking>>&
+get_dijkstra<foot<false, osr::noop_tracking>>();
 
 }  // namespace osr
