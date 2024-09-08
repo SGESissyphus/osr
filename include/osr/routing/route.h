@@ -6,9 +6,8 @@
 #include "boost/json/object.hpp"
 
 #include "osr/lookup.h"
-#include "osr/routing/algorithms/a_star.h"
-#include "osr/routing/algorithms/a_star_bi.h"
-#include "osr/routing/algorithms/dijkstra.h"
+#include "osr/routing/a_star.h"
+#include "osr/routing/dijkstra.h"
 #include "osr/types.h"
 #include "osr/util/infinite.h"
 #include "osr/util/reverse.h"
@@ -24,7 +23,7 @@ enum class search_profile : std::uint8_t {
   kCarParkingWheelchair
 };
 
-enum class routing_algorithm : std::uint8_t { kDijkstra, kAStar, kAStarBi };
+enum class routing_algorithm : std::uint8_t { kDijkstra, kAStar };
 
 search_profile to_profile(std::string_view);
 
@@ -54,9 +53,6 @@ dijkstra<Profile>& get_dijkstra();
 
 template <typename Profile>
 a_star<Profile>& get_a_star();
-
-template <typename Profile>
-a_star_bi<Profile>& get_a_star_bi();
 
 std::vector<std::optional<path>> route(
     ways const&,
@@ -103,15 +99,4 @@ std::optional<path> route_a_star(ways const&,
                                  direction,
                                  double max_match_distance,
                                  bitvec<node_idx_t> const* blocked = nullptr);
-
-std::optional<path> route_a_star_bi(
-    ways const&,
-    lookup const&,
-    search_profile,
-    location const& from,
-    location const& to,
-    cost_t max,
-    direction,
-    double max_match_distance,
-    bitvec<node_idx_t> const* blocked = nullptr);
 }  // namespace osr
