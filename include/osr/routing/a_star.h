@@ -96,18 +96,22 @@ struct a_star {
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
+    std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
+
     while (!minHeap_.empty() && !to_match_.empty()) {
-      std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       auto curr_node_h = minHeap_.back();
+      minHeap_.pop_back();
+
       auto l = curr_node_h.l;
+
       to_match_.erase(std::remove_if(to_match_.begin(), to_match_.end(),
                                      [&](auto const& dest) {
                                        return l.n_ == dest.right_.node_ ||
                                               l.n_ == dest.left_.node_;
                                      }),
                       to_match_.end());
-      minHeap_.pop_back();
+
       if (get_cost(l.get_node()) < l.cost()) {
         continue;
       }
