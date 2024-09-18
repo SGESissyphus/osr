@@ -19,19 +19,20 @@ struct a_star {
   void add_start(label const l, ways const& w) {
     if (cost_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                              node::invalid())) {
-      minHeap_.push_back(node_h{l, 0, heuristic(l, w)});
+      pq_.push(node_h{l, 0, heuristic(l, w)});
     }
   }
 
-  void reset(cost_t,
+  void reset(cost_t max,
              location const& end_loc,
              std::vector<way_candidate> to_match) {
-    minHeap_.clear();
+    pq_.clear();
+    pq_.n_buckets(max + 1U);
     cost_.clear();
     end_loc_ = end_loc;
     to_match_ = std::move(to_match);
     sort_way_candidates(to_match_);
-    to_match_.resize(1);
+    to_match_.resize(3);
   }
 
   cost_t heuristic(label const l, ways const& w) {
@@ -61,12 +62,16 @@ struct a_star {
     cost_t priority() const {
       return static_cast<std::uint16_t>(cost + heuristic);
     }
-    bool operator>(const node_h& other) const {
-      return this->priority() > other.priority();
+    bool operator<(const node_h& other) const {
+      return this->priority() < other.priority();
     }
     Profile::label l;
     cost_t cost;
     cost_t heuristic;
+  };
+
+  struct get_bucket {
+    cost_t operator()(node_h const& n) { return n.cost + n.heuristic; }
   };
 
   cost_t get_cost(node const n) const {
@@ -85,11 +90,11 @@ struct a_star {
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
-    std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-    while (!minHeap_.empty() && !to_match_.empty()) {
-      std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-      auto curr_node_h = minHeap_.back();
-      minHeap_.pop_back();
+    //std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
+    while (!pq_.empty() && !to_match_.empty()) {
+      //std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
+      auto curr_node_h = pq_.pop();
+      //minHeap_.pop_back();
 
       auto l = curr_node_h.l;
 
@@ -116,9 +121,9 @@ struct a_star {
               auto next = label{neighbor, static_cast<cost_t>(total)};
               next.track(l, r, way, neighbor.get_node());
               node_h next_h = node_h{next, next.cost_, heuristic(next, w)};
-              minHeap_.push_back(next_h);
-              std::push_heap(minHeap_.begin(), minHeap_.end(),
-                             std::greater<node_h>{});
+              pq_.push(next_h);
+              /*std::push_heap(minHeap_.begin(), minHeap_.end(),
+                             std::greater<node_h>{});*/
             }
           });
     }
@@ -139,10 +144,11 @@ struct a_star {
           : run<direction::kBackward, true>(w, r, max, blocked);
     }
   }
+  dial<node_h, get_bucket> pq_{get_bucket{}};
   std::optional<label> end_node_label;
   location end_loc_;
   match_t to_match_;
-  std::vector<node_h> minHeap_;
+  //std::vector<node_h> minHeap_;
   ankerl::unordered_dense::map<key, entry, hash> cost_;
 };
 }  // namespace osr
