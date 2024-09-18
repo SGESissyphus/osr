@@ -393,7 +393,8 @@ best_candidate(ways const& w,
         return;
       }
 
-      auto const target_cost = d.get_cost(node);
+      auto const target_cost =
+          d.get_cost(node);  // die Kosten bis zu diesem Node
       if (target_cost == kInfeasible) {
         return;
       }
@@ -540,7 +541,7 @@ std::optional<path> route(ways const& w,
       if (nc->valid() && nc->cost_ < max) {
         Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
                                     dir, [&](auto const node) {
-                                      a.add_start({node, nc->cost_});
+                                      a.add_start({node, nc->cost_}, w);
                                     });
       }
     }

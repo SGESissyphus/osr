@@ -1,5 +1,6 @@
 #pragma once
 
+#include "geo/webmercator.h"
 #include "osr/routing/dial.h"
 #include "osr/types.h"
 #include "osr/ways.h"
@@ -15,10 +16,10 @@ struct a_star {
   using entry = typename Profile::entry;
   using hash = typename Profile::hash;
 
-  void add_start(label const l) {
+  void add_start(label const l, ways const& w) {
     if (cost_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                              node::invalid())) {
-      minHeap_.push_back(node_h{l, 0, 0});
+      minHeap_.push_back(node_h{l, 0, heuristic(l, w)});
     }
   }
 
@@ -32,10 +33,46 @@ struct a_star {
   }
 
   cost_t heuristic(label const l, ways const& w) {
-    auto const coord_node = w.get_node_pos(l.n_).as_latlng();
-    auto const coord_end = end_loc_.pos_;
-    return geo::distance(coord_node, coord_end);
+    auto const start_coord =
+        geo::latlng_to_merc(w.get_node_pos(l.n_).as_latlng());
+    auto const end_node = geo::latlng_to_merc(end_loc_.pos_);
+
+    auto const dx = start_coord.x_ - end_node.x_;
+    auto const dy = start_coord.y_ - end_node.y_;
+
+    auto const dist = newtonSqrt(dx * dx + dy * dy);
+
+    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
   };
+
+  /*
+  cost_t spherical_heuristic(label const l, ways const& w) {
+    auto const coord_node = w.get_node_pos(l.n_).as_latlng();
+    auto const end = end_loc_.pos_;
+
+    auto const dist = geo::distance(coord_node, end);
+
+    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
+  }
+  */
+  double newtonSqrt(double x) {
+    double x1 = x;
+    double x2 = x / 2;
+    while (std::abs(x1 - x2) >= 0.0001) {
+      x1 = x2;
+      x2 = (x1 + x / x1) / 2;
+    }
+    return x2;
+  }
+
+  double FastInverseSqrt(double x) {
+    double xhalf = 0.5f * x;
+    int i = *(int*)&x;
+    i = 0x5f3759df - (i >> 1);
+    x = *(float*)&i;
+    x = x * (1.5f - xhalf * x * x);
+    return x;
+  }
 
   struct node_h {
     cost_t priority() const {
@@ -59,18 +96,22 @@ struct a_star {
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
+    std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
+
     while (!minHeap_.empty() && !to_match_.empty()) {
-      std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       auto curr_node_h = minHeap_.back();
-      auto l = curr_node_h.l;
-      to_match_.erase(
-          std::remove_if(to_match_.begin(), to_match_.end(),
-                         [&](auto const& dest) {
-                           return l.n_ == dest.right_.node_ || l.n_ == dest.left_.node_;
-                         }),
-          to_match_.end());
       minHeap_.pop_back();
+
+      auto l = curr_node_h.l;
+
+      to_match_.erase(std::remove_if(to_match_.begin(), to_match_.end(),
+                                     [&](auto const& dest) {
+                                       return l.n_ == dest.right_.node_ ||
+                                              l.n_ == dest.left_.node_;
+                                     }),
+                      to_match_.end());
+
       if (get_cost(l.get_node()) < l.cost()) {
         continue;
       }
