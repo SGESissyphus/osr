@@ -29,7 +29,9 @@ struct a_star {
     minHeap_.clear();
     cost_.clear();
     end_loc_ = end_loc;
-    to_match_ = to_match;
+    to_match_ = std::move(to_match);
+    sort_way_candidates(to_match_);
+    to_match_.resize(1);
   }
 
   cost_t heuristic(label const l, ways const& w) {
@@ -45,16 +47,6 @@ struct a_star {
     return dist / to_meters_per_second(static_cast<speed_limit>(5U));
   };
 
-  /*
-  cost_t spherical_heuristic(label const l, ways const& w) {
-    auto const coord_node = w.get_node_pos(l.n_).as_latlng();
-    auto const end = end_loc_.pos_;
-
-    auto const dist = geo::distance(coord_node, end);
-
-    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
-  }
-  */
   double newtonSqrt(double x) {
     double x1 = x;
     double x2 = x / 2;
@@ -63,15 +55,6 @@ struct a_star {
       x2 = (x1 + x / x1) / 2;
     }
     return x2;
-  }
-
-  double FastInverseSqrt(double x) {
-    double xhalf = 0.5f * x;
-    int i = *(int*)&x;
-    i = 0x5f3759df - (i >> 1);
-    x = *(float*)&i;
-    x = x * (1.5f - xhalf * x * x);
-    return x;
   }
 
   struct node_h {
@@ -91,13 +74,18 @@ struct a_star {
     return it != end(cost_) ? it->second.cost(n) : kInfeasible;
   }
 
+  void sort_way_candidates(std::vector<way_candidate>& to_match) {
+    std::sort(to_match.begin(), to_match.end(), [](const way_candidate& a, const way_candidate& b) {
+      return a.dist_to_way_ < b.dist_to_way_;
+    });
+  }
+
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
     std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-
     while (!minHeap_.empty() && !to_match_.empty()) {
       std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
       auto curr_node_h = minHeap_.back();
