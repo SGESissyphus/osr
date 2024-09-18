@@ -473,28 +473,24 @@ std::optional<path> route(ways const& w,
     return *direct;
   }
 
-  a.reset(max, from, to);
-  a.reset(max, from, to);
+  auto const& start = from_match[0];
+  auto const& end = to_match[0];
+  a.reset(max, from, to, start, end);
 
-  for (auto const& start : from_match) {
-    for (auto const* nc : {&start.left_, &start.right_}) {
-      if (nc->valid() && nc->cost_ < max) {
-        Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
-                                    dir, [&](auto const node) {
-                                      a.add_start({node, nc->cost_}, true);
-                                    });
-      }
+  for (auto const* nc : {&start.left_, &start.right_}) {
+    if (nc->valid() && nc->cost_ < max) {
+      Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_, dir,
+                                  [&](auto const node) {
+                                    a.add_start({node, nc->cost_}, true);
+                                  });
     }
   }
-
-  for (auto const& end : to_match) {
-    for (auto const* nc : {&end.left_, &end.right_}) {
-      if (nc->valid() && nc->cost_ < max) {
-        Profile::resolve_start_node(*w.r_, end.way_, nc->node_, to.lvl_,
-                                    opposite(dir), [&](auto const node) {
-                                      a.add_start({node, nc->cost_}, false);
-                                    });
-      }
+  for (auto const* nc : {&end.left_, &end.right_}) {
+    if (nc->valid() && nc->cost_ < max) {
+      Profile::resolve_start_node(*w.r_, end.way_, nc->node_, to.lvl_,
+                                  opposite(dir), [&](auto const node) {
+                                    a.add_start({node, nc->cost_}, false);
+                                  });
     }
   }
 
@@ -852,17 +848,14 @@ std::optional<path> route_a_star_bi(ways const& w,
                    to, max, dir, max_match_distance, blocked);
     case search_profile::kBike:
       return route(w, l, get_a_star_bi<bike>(), from, to, max, dir,
-      return route(w, l, get_a_star_bi<bike>(), from, to, max, dir,
                    max_match_distance, blocked);
     case search_profile::kCar:
-      return route(w, l, get_a_star_bi<car>(), from, to, max, dir,
       return route(w, l, get_a_star_bi<car>(), from, to, max, dir,
                    max_match_distance, blocked);
     case search_profile::kCarParking:
       return route(w, l, get_a_star_bi<car_parking<false>>(), from, to, max,
                    dir, max_match_distance, blocked);
     case search_profile::kCarParkingWheelchair:
-      return route(w, l, get_a_star_bi<car_parking<true>>(), from, to, max, dir,
       return route(w, l, get_a_star_bi<car_parking<true>>(), from, to, max, dir,
                    max_match_distance, blocked);
   }

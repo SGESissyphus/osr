@@ -65,6 +65,7 @@ struct a_star {
     return x2;
   }
 
+  /*
   double FastInverseSqrt(double x) {
     double xhalf = 0.5f * x;
     int i = *(int*)&x;
@@ -73,6 +74,7 @@ struct a_star {
     x = x * (1.5f - xhalf * x * x);
     return x;
   }
+  */
 
   struct node_h {
     cost_t priority() const {
