@@ -22,7 +22,7 @@ struct a_star_bi {
   void add_end(label const l, ways const& w) {
     if (cost2_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
-      minHeap2_.push_back(node_h{l, 0, heuristic_Start(l, w)});
+      minHeap2_.push_back(node_h{l, 0, heuristic_to_start(l, w)});
     }
   }
 
@@ -73,34 +73,30 @@ struct a_star_bi {
 
     std::make_heap(minHeap1_.begin(), minHeap2_.end(), std::greater<node_h>{});
     std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
-    node curr1;
-    node curr2;
-
-    while (minHeap1_.size() > 0 && minHeap2_.size() > 0) {
-      curr1 = run_start_to_end(w, r, max, blocked);
-      curr2 = run_end_to_start(w, r, max, blocked);
-
-      if (*curr1 != nullptr) {
-        if (!expanded_.contains(curr1)) {
-          expanded_.insert(curr1);
+    while (!minHeap1_.empty() && !minHeap2_.empty()) {
+      auto curr1 = run_start_to_end(w, r, max, blocked);
+      auto curr2 = run_end_to_start(w, r, max, blocked);
+      if (curr1 != std::nullopt) {
+        if (!expanded_.contains(curr1.value())) {
+          expanded_.emplace(curr1.value());
+        } else if (curr1.value().n_ == end_.right_.node_) {
+          meet_point = curr1.value();
+          return;
         } else {
-          meet_point = curr1;
-          break;
-        }
-      } else if (*curr2 != nullptr) {
-        if (!expanded_.contains(curr2)) {
-          expanded_.insert(curr2);
-        } else {
-          meet_point = curr2;
-          break;
+          meet_point = curr1.value();
+          return;
         }
       }
-      if (curr1 == end_.right_.node_) {
-        meet_point = curr1;
-        return;
-      } else if (curr2 == start_.left_.node_) {
-        meet_point = curr2;
-        return;
+      if (curr2 != std::nullopt) {
+        if (!expanded_.contains(curr2.value())) {
+          expanded_.emplace(curr2.value());
+        } else if (curr2.value().n_ == start_.left_.node_) {
+          meet_point = curr2.value();
+          return;
+        } else {
+          meet_point = curr2.value();
+          break;
+        }
       }
     }
   }

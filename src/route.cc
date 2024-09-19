@@ -543,7 +543,7 @@ std::optional<path> route(ways const& w,
     if (nc->valid() && nc->cost_ < max) {
       Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_, dir,
                                   [&](auto const node) {
-                                    a.add_start({node, nc->cost_}, true);
+                                    a.add_start({node, nc->cost_}, w);
                                   });
     }
   }
@@ -551,7 +551,7 @@ std::optional<path> route(ways const& w,
     if (nc->valid() && nc->cost_ < max) {
       Profile::resolve_start_node(*w.r_, end.way_, nc->node_, to.lvl_,
                                   opposite(dir), [&](auto const node) {
-                                    a.add_start({node, nc->cost_}, false);
+                                    a.add_end({node, nc->cost_}, w);
                                   });
     }
   }
