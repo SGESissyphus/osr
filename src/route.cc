@@ -152,6 +152,68 @@ double add_path(ways const& w,
 }
 
 template <typename Profile>
+path reconstruct_a_bi(ways const& w,
+                      bitvec<node_idx_t> const* blocked,
+                      a_star_bi<Profile> const& a,
+                      way_candidate const& start,
+                      way_candidate const& end,
+                      typename Profile::node const start_node,
+                      typename Profile::node const end_node,
+                      cost_t const cost,
+                      direction const dir) {
+  // Get meeting point
+  auto forward_n = a.meet_point;
+
+  auto forward_segments =
+      std::vector<path::segment>{{.polyline_ = dest.path_,
+                                  .from_level_ = dest.lvl_,
+                                  .to_level_ = dest.lvl_,
+                                  .from_ = node_idx_t::invalid(),
+                                  .to_ = node_idx_t::invalid(),
+                                  .way_ = way_idx_t::invalid()}};
+  // Von Meeting Point zu Start
+  auto forward_dist = 0.0;
+
+  while (true) {
+    auto const& e = a.cost1_.at(forward_n.get_key());
+    auto const pred = e.pred(forward_n);
+    if (pred.has_value()) {
+      auto const expected_cost =
+          static_cast<cost_t>(e.cost(forward_n) - a.get_cost_from_start(*pred));
+      forward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, forward_n,
+                                        expected_cost, forward_segments, dir);
+    } else {
+      break;
+    }
+    forward_n = *pred;
+  }
+
+  // Von Meeting Point zu End
+  auto backward_segments = std::vector<path::segment>();
+  auto backward_n = a.meet_point;
+  auto backward_dist = 0.0;
+
+  while (true) {
+    auto const& e = a.cost2_.at(backward_n.get_key());
+    auto const pred = e.pred(backward_n);
+    if (pred.has_value()) {
+      auto const expected_cost =
+          static_cast<cost_t>(e.cost(backward_n) - a.get_cost_from_end(*pred));
+      backward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, backward_n,
+                                         expected_cost, backward_segments, dir);
+    } else {
+      break;
+    }
+    backward_n = *pred;
+  }
+
+  // reconstruct from end to meeting point
+
+  // if there is no meeting point, reconstruct hole path from start to and or
+  // end to start
+}
+
+template <typename Profile>
 path reconstruct_a(ways const& w,
                    bitvec<node_idx_t> const* blocked,
                    a_star<Profile> const& a,
@@ -649,15 +711,11 @@ std::vector<std::optional<path>> route(
     for (auto const [m, t, r] : utl::zip(to_match, to, result)) {
       if (r.has_value()) {
         ++found;
-      } else if (auto const direct = try_direct(from, t); direct.has_value()) {
-        r = direct;
-      } else {
-        auto const c = best_candidate(w, a, t.lvl_, m, max, dir);
-        if (c.has_value()) {
-          auto [nc, wc, n, p] = *c;
-          if (do_reconstruct(p)) {
-            p = reconstruct<Profile>(w, blocked, a, start, *nc, n, p.cost_,
-                                     dir);
+      } else if (auto const direct = try_direct(from, t);
+direct.has_value()) { r = direct; } else { auto const c = best_candidate(w,
+a, t.lvl_, m, max, dir); if (c.has_value()) { auto [nc, wc, n, p] = *c; if
+(do_reconstruct(p)) { p = reconstruct<Profile>(w, blocked, a, start, *nc, n,
+p.cost_, dir);
           }
           r = std::make_optional(p);
           ++found;
@@ -925,12 +983,6 @@ std::optional<path> route_dijkstra(ways const& w,
   }
   throw utl::fail("not implemented");
 }
-
-template a_star_bi<foot<true, osr::noop_tracking>>&
-get_a_star_bi<foot<true, osr::noop_tracking>>();
-
-template a_star_bi<foot<false, osr::noop_tracking>>&
-get_a_star_bi<foot<false, osr::noop_tracking>>();
 
 template a_star<foot<true, osr::noop_tracking>>&
 get_a_star<foot<true, osr::noop_tracking>>();
