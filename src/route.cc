@@ -481,7 +481,7 @@ std::optional<path> route(ways const& w,
     if (nc->valid() && nc->cost_ < max) {
       Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_, dir,
                                   [&](auto const node) {
-                                    a.add_start({node, nc->cost_}, true);
+                                    a.add_start({node, nc->cost_}, w);
                                   });
     }
   }
@@ -489,7 +489,7 @@ std::optional<path> route(ways const& w,
     if (nc->valid() && nc->cost_ < max) {
       Profile::resolve_start_node(*w.r_, end.way_, nc->node_, to.lvl_,
                                   opposite(dir), [&](auto const node) {
-                                    a.add_start({node, nc->cost_}, false);
+                                    a.add_end({node, nc->cost_}, w);
                                   });
     }
   }
@@ -925,12 +925,6 @@ std::optional<path> route_dijkstra(ways const& w,
   }
   throw utl::fail("not implemented");
 }
-
-template a_star_bi<foot<true, osr::noop_tracking>>&
-get_a_star_bi<foot<true, osr::noop_tracking>>();
-
-template a_star_bi<foot<false, osr::noop_tracking>>&
-get_a_star_bi<foot<false, osr::noop_tracking>>();
 
 template a_star<foot<true, osr::noop_tracking>>&
 get_a_star<foot<true, osr::noop_tracking>>();
