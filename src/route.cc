@@ -157,18 +157,12 @@ path reconstruct_a_bi(ways const& w,
                       a_star_bi<Profile> const& a,
                       way_candidate const& start,
                       way_candidate const& end,
-                      node_candidate const& mp_nc,
                       cost_t const cost,
                       direction const dir) {
   // Get meeting point
   auto forward_n = a.meet_point;
 
-  auto forward_segments = std::vector<path::segment>{{.polyline_ = mp_nc.path_,
-                                                      .from_level_ = mp_nc.lvl_,
-                                                      .to_level_ = mp_nc.lvl_,
-                                                      .from_ = node_idx_t::invalid(),
-                                                      .to_ = node_idx_t::invalid(),
-                                                      .way_ = way_idx_t::invalid()}};
+  auto forward_segments = std::vector<path::segment>{};
   // Von Meeting Point zu Start
   auto forward_dist = 0.0;
 
@@ -186,14 +180,23 @@ path reconstruct_a_bi(ways const& w,
     forward_n = *pred;
   }
 
+  auto const& start_node_candidate =
+      forward_n.get_node() == start.left_.node_ ? start.left_ : start.right_;
+
+  forward_segments.push_back(
+      {.polyline_ = start_node_candidate.path_,
+       .from_level_ = start_node_candidate.lvl_,
+       .to_level_ = start_node_candidate.lvl_,
+       .from_ = dir == direction::kBackward ? forward_n.get_node()
+                                            : node_idx_t::invalid(),
+       .to_ = dir == direction::kForward ? forward_n.get_node()
+                                         : node_idx_t::invalid(),
+       .way_ = way_idx_t::invalid(),
+       .cost_ = kInfeasible,
+       .dist_ = 0});
+
   // Von Meeting Point zu End
-  auto backward_segments =
-      std::vector<path::segment>{{.polyline_ = mp_nc.path_,
-                                  .from_level_ = mp_nc.lvl_,
-                                  .to_level_ = mp_nc.lvl_,
-                                  .from_ = node_idx_t::invalid(),
-                                  .to_ = node_idx_t::invalid(),
-                                  .way_ = way_idx_t::invalid()}};
+  auto backward_segments = std::vector<path::segment>{};
   auto backward_n = a.meet_point;
   auto backward_dist = 0.0;
 
@@ -211,16 +214,13 @@ path reconstruct_a_bi(ways const& w,
     backward_n = *pred;
   }
 
-  auto const& start_node_candidate =
-      forward_n.get_node() == start.left_.node_ ? start.left_ : start.right_;
-
   auto const& end_node_candidate =
       backward_n.get_node() == end.left_.node_ ? end.left_ : end.right_;
 
   backward_segments.push_back(
-      {.polyline_ = start_node_candidate.path_,
-       .from_level_ = start_node_candidate.lvl_,
-       .to_level_ = start_node_candidate.lvl_,
+      {.polyline_ = end_node_candidate.path_,
+       .from_level_ = end_node_candidate.lvl_,
+       .to_level_ = end_node_candidate.lvl_,
        .from_ = dir == direction::kBackward ? forward_n.get_node()
                                             : node_idx_t::invalid(),
        .to_ = dir == direction::kForward ? forward_n.get_node()
@@ -229,18 +229,19 @@ path reconstruct_a_bi(ways const& w,
        .cost_ = kInfeasible,
        .dist_ = 0});
 
-  std::reverse(backward_segments.begin(), backward_segments.end());
+  std::reverse(forward_segments.begin(), forward_segments.end());
 
-  backward_segments.insert(backward_segments.end(), forward_segments.begin(),
-                           forward_segments.end());
+  forward_segments.insert(forward_segments.end(), backward_segments.begin(),
+                          backward_segments.end());
 
   auto total_dist = start_node_candidate.dist_to_node_ + forward_dist +
                     backward_dist + end_node_candidate.dist_to_node_;
 
   auto p =
-      path{.cost_ = cost, .dist_ = total_dist, .segments_ = backward_segments};
+      path{.cost_ = cost, .dist_ = total_dist, .segments_ = forward_segments};
 
-  //a.cost1_.at(backward_n.get_node().get_key()).write(backward_n.get_node(), p); TODO:: what is this??
+  // a.cost1_.at(backward_n.get_node().get_key()).write(backward_n.get_node(),
+  // p); TODO:: what is this??
 
   return p;
 
@@ -492,8 +493,7 @@ best_candidate(ways const& w,
         return;
       }
 
-      auto const target_cost =
-          d.get_cost(node);
+      auto const target_cost = d.get_cost(node);
       if (target_cost == kInfeasible) {
         return;
       }
@@ -549,10 +549,11 @@ std::optional<path> try_direct(osr::location const& from,
              : std::nullopt;
 }
 
-void sort_way_candidates(std::vector<way_candidate>&  to_match) {
-  std::sort(to_match.begin(), to_match.end(), [](const way_candidate& a, const way_candidate& b) {
-    return a.dist_to_way_ < b.dist_to_way_;
-  });
+void sort_way_candidates(std::vector<way_candidate>& to_match) {
+  std::sort(to_match.begin(), to_match.end(),
+            [](const way_candidate& a, const way_candidate& b) {
+              return a.dist_to_way_ < b.dist_to_way_;
+            });
 }
 
 template <typename Profile>
@@ -565,10 +566,9 @@ std::optional<path> route(ways const& w,
                           direction const dir,
                           double const max_match_distance,
                           bitvec<node_idx_t> const* blocked) {
-  auto  from_match =
+  auto from_match =
       l.match<Profile>(from, false, dir, max_match_distance, blocked);
-  auto  to_match =
-      l.match<Profile>(to, true, dir, max_match_distance, blocked);
+  auto to_match = l.match<Profile>(to, true, dir, max_match_distance, blocked);
 
   if (from_match.empty() || to_match.empty()) {
     return std::nullopt;
@@ -603,26 +603,12 @@ std::optional<path> route(ways const& w,
     }
   }
 
-  //finding nc of meet_point
+  // finding nc of meet_point
   a.run(w, *w.r_, max, blocked, dir);
 
-  auto const mp_latlng = w.get_node_pos(a.meet_point.n_).as_latlng();
-  auto mp_location = location{mp_latlng, level_t::invalid()};
-  auto const mp_match =
-      l.match<Profile>(mp_location, false, dir, max_match_distance, blocked);
-  auto mp_nc = static_cast<node_candidate const*>(nullptr);
-  for (auto const& mp : mp_match) {
-    for (auto const* nc : {&mp.left_, &mp.right_}) {
-      if (nc->valid() && nc->cost_ < max) {
-        if(a.meet_point.n_ == nc->node_){
-          mp_nc = nc;
-        }
-      }
-    }
-  }
-
-  auto cost = a.cost1_.at(a.meet_point.get_key()).cost(a.meet_point) + a.cost2_.at(a.meet_point.get_key()).cost(a.meet_point);
-  return reconstruct_a_bi(w, blocked, a, start, end, *mp_nc, cost, dir);
+  auto cost = a.cost1_.at(a.meet_point.get_key()).cost(a.meet_point) +
+              a.cost2_.at(a.meet_point.get_key()).cost(a.meet_point);
+  return reconstruct_a_bi(w, blocked, a, start, end, cost, dir);
 
   /*auto const c = best_candidate(w, a, to.lvl_, to_match, max, dir);
   if (c.has_value()) {
