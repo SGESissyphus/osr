@@ -24,6 +24,9 @@ enum class search_profile : std::uint8_t {
   kCarParkingWheelchair
 };
 
+void sort_way_candidates(std::vector<way_candidate>& to_match);
+
+
 enum class routing_algorithm : std::uint8_t { kDijkstra, kAStar, kAStarBi };
 
 search_profile to_profile(std::string_view);
