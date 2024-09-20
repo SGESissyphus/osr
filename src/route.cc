@@ -165,9 +165,9 @@ path reconstruct_a_bi(ways const& w,
   auto forward_n = a.meet_point;
 
   auto forward_segments =
-      std::vector<path::segment>{{.polyline_ = dest.path_,
-                                  .from_level_ = dest.lvl_,
-                                  .to_level_ = dest.lvl_,
+      std::vector<path::segment>{{.polyline_ = end.path_,
+                                  .from_level_ = end.lvl_,
+                                  .to_level_ = end.lvl_,
                                   .from_ = node_idx_t::invalid(),
                                   .to_ = node_idx_t::invalid(),
                                   .way_ = way_idx_t::invalid()}};
@@ -206,6 +206,37 @@ path reconstruct_a_bi(ways const& w,
     }
     backward_n = *pred;
   }
+
+  auto const& start_node =
+      forward_n.get_node() == start.left_.node_ ? start.left_ : start.right_;
+  backward_segments.push_back(
+      {.polyline_ = start_node.path_,
+       .from_level_ = start_node.lvl_,
+       .to_level_ = start_node.lvl_,
+       .from_ = dir == direction::kBackward ? forward_n.get_node()
+                                            : node_idx_t::invalid(),
+       .to_ = dir == direction::kForward ? forward_n.get_node()
+                                         : node_idx_t::invalid(),
+       .way_ = way_idx_t::invalid(),
+       .cost_ = kInfeasible,
+       .dist_ = 0});
+
+  std::reverse(begin(backward_segments), end(backward_segments));
+
+  backward_segments.insert(end(backward_segments), begin(forward_segments),
+                           end(forward_segments));
+
+  auto total_dist = start_node.dist_to_node_ + forward_dist + backward_dist +
+                    end.dist_to_way_;
+
+  auto p =
+      path{.cost_ = cost, .dist_ = total_dist, .segments_ = backward_segments};
+  a.cost1_.at(end_node.get_key())
+      .write(end_node, path{.cost_ = cost,
+                            .dist_ = total_dist,
+                            .segments_ = backward_segments});
+
+  return p;
 
   // reconstruct from end to meeting point
 
