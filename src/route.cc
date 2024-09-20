@@ -156,7 +156,7 @@ path reconstruct_a_bi(ways const& w,
                       bitvec<node_idx_t> const* blocked,
                       a_star_bi<Profile> const& a,
                       way_candidate const& start,
-                      way_candidate const& end,
+                      node_candidate const& end,
                       typename Profile::node const start_node,
                       typename Profile::node const end_node,
                       cost_t const cost,
@@ -164,13 +164,7 @@ path reconstruct_a_bi(ways const& w,
   // Get meeting point
   auto forward_n = a.meet_point;
 
-  auto forward_segments =
-      std::vector<path::segment>{{.polyline_ = end.path_,
-                                  .from_level_ = end.lvl_,
-                                  .to_level_ = end.lvl_,
-                                  .from_ = node_idx_t::invalid(),
-                                  .to_ = node_idx_t::invalid(),
-                                  .way_ = way_idx_t::invalid()}};
+  auto forward_segments = std::vector<path::segment>();
   // Von Meeting Point zu Start
   auto forward_dist = 0.0;
 
@@ -189,7 +183,13 @@ path reconstruct_a_bi(ways const& w,
   }
 
   // Von Meeting Point zu End
-  auto backward_segments = std::vector<path::segment>();
+  auto backward_segments =
+      std::vector<path::segment>{{.polyline_ = end.path_,
+                                  .from_level_ = end.lvl_,
+                                  .to_level_ = end.lvl_,
+                                  .from_ = node_idx_t::invalid(),
+                                  .to_ = node_idx_t::invalid(),
+                                  .way_ = way_idx_t::invalid()}};
   auto backward_n = a.meet_point;
   auto backward_dist = 0.0;
 
@@ -207,12 +207,12 @@ path reconstruct_a_bi(ways const& w,
     backward_n = *pred;
   }
 
-  auto const& start_node =
+  auto const& start_node_candidate =
       forward_n.get_node() == start.left_.node_ ? start.left_ : start.right_;
   backward_segments.push_back(
-      {.polyline_ = start_node.path_,
-       .from_level_ = start_node.lvl_,
-       .to_level_ = start_node.lvl_,
+      {.polyline_ = start_node_candidate.path_,
+       .from_level_ = start_node_candidate.lvl_,
+       .to_level_ = start_node_candidate.lvl_,
        .from_ = dir == direction::kBackward ? forward_n.get_node()
                                             : node_idx_t::invalid(),
        .to_ = dir == direction::kForward ? forward_n.get_node()
@@ -221,20 +221,17 @@ path reconstruct_a_bi(ways const& w,
        .cost_ = kInfeasible,
        .dist_ = 0});
 
-  std::reverse(begin(backward_segments), end(backward_segments));
+  std::reverse(backward_segments.begin(), backward_segments.end());
 
-  backward_segments.insert(end(backward_segments), begin(forward_segments),
-                           end(forward_segments));
+  backward_segments.insert(backward_segments.end(), forward_segments.begin(),
+                           forward_segments.end());
 
-  auto total_dist = start_node.dist_to_node_ + forward_dist + backward_dist +
-                    end.dist_to_way_;
+  auto total_dist = start_node_candidate.dist_to_node_ + forward_dist +
+                    backward_dist + end.dist_to_node_;
 
   auto p =
       path{.cost_ = cost, .dist_ = total_dist, .segments_ = backward_segments};
-  a.cost1_.at(end_node.get_key())
-      .write(end_node, path{.cost_ = cost,
-                            .dist_ = total_dist,
-                            .segments_ = backward_segments});
+  a.cost1_.at(end_node.get_key()).write(end_node, p);
 
   return p;
 
