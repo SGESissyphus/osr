@@ -45,13 +45,29 @@ struct a_star_bi {
   // TODO Heuristics
 
   cost_t heuristic(label const l, ways const& w) {
-    auto const node_latlng = w.get_node_pos(l.n_).as_latlng();
-    return geo::distance(node_latlng, end_loc_.pos_);
+    auto const node_merc_latlng =
+        geo::latlng_to_merc(w.get_node_pos(l.n_).as_latlng());
+    auto const end_merc = geo::latlng_to_merc(end_loc_.pos_);
+
+    auto const dx = node_merc_latlng.x_ - end_merc.x_;
+    auto const dy = node_merc_latlng.y_ - end_merc.y_;
+
+    auto const dist = newtonSqrt(dx * dx + dy * dy);
+
+    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
   }
 
   cost_t heuristic_to_start(label const l, ways const& w) {
-    auto const coord_node = w.get_node_pos(l.n_).as_latlng();
-    return geo::distance(coord_node, start_loc_.pos_);
+    auto const node_merc_latlng =
+        geo::latlng_to_merc(w.get_node_pos(l.n_).as_latlng());
+    auto const start_merc = geo::latlng_to_merc(start_loc_.pos_);
+
+    auto const dx = node_merc_latlng.x_ - start_merc.x_;
+    auto const dy = node_merc_latlng.y_ - start_merc.y_;
+
+    auto const dist = newtonSqrt(dx * dx + dy * dy);
+
+    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
   }
 
   // TODO get_cost not modified for bi-directional
@@ -65,13 +81,23 @@ struct a_star_bi {
     return it != end(cost2_) ? it->second.cost(n) : kInfeasible;
   }
 
+  double newtonSqrt(double x) {
+    double x1 = x;
+    double x2 = x / 2;
+    while (std::abs(x1 - x2) >= 0.0001) {
+      x1 = x2;
+      x2 = (x1 + x / x1) / 2;
+    }
+    return x2;
+  }
+
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
 
-    std::make_heap(minHeap1_.begin(), minHeap2_.end(), std::greater<node_h>{});
+    std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
     while (!minHeap1_.empty() && !minHeap2_.empty()) {
       auto curr1 = run_start_to_end(w, r, max, blocked);
