@@ -13,13 +13,15 @@ struct a_star_bi {
   using node_h = typename a_star<Profile>::node_h;
 
   void add_start(label const l, ways const& w) {
+    // std::cout << "add in heap1\n";
     if (cost1_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
-      minHeap1_.push_back(node_h{l, 0, heuristic(l, w)});
+      minHeap1_.push_back(node_h{l, 0, heuristic_to_end(l, w)});
     }
   }
 
   void add_end(label const l, ways const& w) {
+    // std::cout << "add in heap2\n";
     if (cost2_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
       minHeap2_.push_back(node_h{l, 0, heuristic_to_start(l, w)});
@@ -44,13 +46,13 @@ struct a_star_bi {
 
   // TODO Heuristics
 
-  cost_t heuristic(label const l, ways const& w) {
-    auto const node_merc_latlng =
+  cost_t heuristic_to_end(label const l, ways const& w) {
+    auto const node_coord =
         geo::latlng_to_merc(w.get_node_pos(l.n_).as_latlng());
-    auto const end_merc = geo::latlng_to_merc(end_loc_.pos_);
+    auto const end_node = geo::latlng_to_merc(end_loc_.pos_);
 
-    auto const dx = node_merc_latlng.x_ - end_merc.x_;
-    auto const dy = node_merc_latlng.y_ - end_merc.y_;
+    auto const dx = node_coord.x_ - end_node.x_;
+    auto const dy = node_coord.y_ - end_node.y_;
 
     auto const dist = newtonSqrt(dx * dx + dy * dy);
 
@@ -58,26 +60,39 @@ struct a_star_bi {
   }
 
   cost_t heuristic_to_start(label const l, ways const& w) {
-    auto const node_merc_latlng =
+    auto const node_coord =
         geo::latlng_to_merc(w.get_node_pos(l.n_).as_latlng());
-    auto const start_merc = geo::latlng_to_merc(start_loc_.pos_);
+    auto const start_node = geo::latlng_to_merc(start_loc_.pos_);
 
-    auto const dx = node_merc_latlng.x_ - start_merc.x_;
-    auto const dy = node_merc_latlng.y_ - start_merc.y_;
+    auto const dx = node_coord.x_ - start_node.x_;
+    auto const dy = node_coord.y_ - start_node.y_;
 
     auto const dist = newtonSqrt(dx * dx + dy * dy);
 
     return dist / to_meters_per_second(static_cast<speed_limit>(5U));
   }
 
+  double newtonSqrt(double x) {
+    double x1 = x;
+    double x2 = x / 2;
+    while (std::abs(x1 - x2) >= 0.0001) {
+      x1 = x2;
+      x2 = (x1 + x / x1) / 2;
+    }
+    return x2;
+  }
   // TODO get_cost not modified for bi-directional
   cost_t get_cost_from_start(node const n) const {
+    // std::cout << "before find in get_cost_from\n";
     auto const it = cost1_.find(n.get_key());
+    // std::cout << "after find in get_cost_from\n";
     return it != end(cost1_) ? it->second.cost(n) : kInfeasible;
   }
 
   cost_t get_cost_from_end(node const n) const {
+    // std::cout << "before find in get_cost_end\n";
     auto const it = cost2_.find(n.get_key());
+    // std::cout << "after find in get_cost_end\n";
     return it != end(cost2_) ? it->second.cost(n) : kInfeasible;
   }
 
@@ -98,30 +113,38 @@ struct a_star_bi {
            bitvec<node_idx_t> const* blocked) {
 
     std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
+    std::cout << "run begin\n";
+    std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
     while (!minHeap1_.empty() && !minHeap2_.empty()) {
+      // std::cout << "in the while-loop run \n";
       auto curr1 = run_start_to_end(w, r, max, blocked);
       auto curr2 = run_end_to_start(w, r, max, blocked);
+      // std::cout << "after finding currs\n";
       if (curr1 != std::nullopt) {
         if (!expanded_.contains(curr1.value())) {
+          std::cout << "curr1 adds in expand: "
+                    << static_cast<std::uint32_t>(curr1.value().n_)
+                    << std::endl;
           expanded_.emplace(curr1.value());
-        } else if (curr1.value().n_ == end_.right_.node_) {
-          meet_point = curr1.value();
-          return;
         } else {
           meet_point = curr1.value();
+          std::cout << "breaking because curr1 is already expanded:"
+                    << static_cast<std::uint32_t>(meet_point.n_) << std::endl;
           return;
         }
       }
       if (curr2 != std::nullopt) {
         if (!expanded_.contains(curr2.value())) {
+          std::cout << "curr2 adds in expand: "
+                    << static_cast<std::uint32_t>(curr2.value().n_)
+                    << std::endl;
           expanded_.emplace(curr2.value());
-        } else if (curr2.value().n_ == start_.left_.node_) {
-          meet_point = curr2.value();
-          return;
         } else {
           meet_point = curr2.value();
-          break;
+          std::cout << "breaking because curr2 is already expanded:"
+                    << static_cast<std::uint32_t>(meet_point.n_) << std::endl;
+          return;
         }
       }
     }
@@ -131,6 +154,7 @@ struct a_star_bi {
                                        ways::routing const& r,
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
+    std::cout << "run start to end \n";
     std::pop_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     auto curr_node_h = minHeap1_.back();
     minHeap1_.pop_back();
@@ -139,9 +163,6 @@ struct a_star_bi {
     auto curr = l.get_node();
 
     if (get_cost_from_start(curr) < l.cost()) {
-      return std::nullopt;  // TODO check for good return value
-    }
-    if (get_cost_from_end(curr) < l.cost()) {
       return std::nullopt;  // TODO check for good return value
     }
 
@@ -155,13 +176,12 @@ struct a_star_bi {
                   l, neighbor, static_cast<cost_t>(total), curr)) {
             auto next = label{neighbor, static_cast<cost_t>(total)};
             next.track(l, r, way, neighbor.get_node());
-            node_h next_h = node_h{next, next.cost_, heuristic(next, w)};
+            node_h next_h = node_h{next, next.cost_, heuristic_to_end(next, w)};
             minHeap1_.push_back(next_h);
             std::push_heap(minHeap1_.begin(), minHeap1_.end(),
                            std::greater<node_h>{});
           }
         });
-
     return curr;
   }
 
@@ -169,6 +189,7 @@ struct a_star_bi {
                                        ways::routing const& r,
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
+    std::cout << "run end to start \n";
     std::pop_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
     auto curr_node_h = minHeap2_.back();
     minHeap2_.pop_back();
@@ -176,14 +197,10 @@ struct a_star_bi {
     auto l = curr_node_h.l;
     auto curr = l.get_node();
 
-    if (get_cost_from_start(curr) < l.cost()) {
-      return std::nullopt;  // TODO check for good return value
-    }
-
     if (get_cost_from_end(curr) < l.cost()) {
       return std::nullopt;  // TODO check for good return value
     }
-
+    std::cout << "before adjecency end-start\n";
     Profile::template adjacent<direction::kBackward, false>(
         r, curr, blocked,
         [&](node const neighbor, std::uint32_t const cost, distance_t,
@@ -201,7 +218,7 @@ struct a_star_bi {
                            std::greater<node_h>{});
           }
         });
-
+    std::cout << "after adjecency end-start\n";
     return curr;
   }
 

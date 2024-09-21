@@ -159,6 +159,7 @@ path reconstruct_a_bi(ways const& w,
                       way_candidate const& end,
                       cost_t const cost,
                       direction const dir) {
+  std::cout << "in reconstruct \n";
   // Get meeting point
   auto forward_n = a.meet_point;
 
@@ -167,7 +168,9 @@ path reconstruct_a_bi(ways const& w,
   auto forward_dist = 0.0;
 
   while (true) {
+    std::cout << "before at in forward loop \n";
     auto const& e = a.cost1_.at(forward_n.get_key());
+    std::cout << "reconstructing forward, while-loop \n";
     auto const pred = e.pred(forward_n);
     if (pred.has_value()) {
       auto const expected_cost =
@@ -175,6 +178,7 @@ path reconstruct_a_bi(ways const& w,
       forward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, forward_n,
                                         expected_cost, forward_segments, dir);
     } else {
+      std::cout << "break in forward while loop\n";
       break;
     }
     forward_n = *pred;
@@ -201,7 +205,9 @@ path reconstruct_a_bi(ways const& w,
   auto backward_dist = 0.0;
 
   while (true) {
+    std::cout << "before at in backward loop \n";
     auto const& e = a.cost2_.at(backward_n.get_key());
+    std::cout << "after at in backward loop ";
     auto const pred = e.pred(backward_n);
     if (pred.has_value()) {
       auto const expected_cost =
@@ -209,6 +215,7 @@ path reconstruct_a_bi(ways const& w,
       backward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, backward_n,
                                          expected_cost, backward_segments, dir);
     } else {
+      std::cout << "break backward loop \n";
       break;
     }
     backward_n = *pred;
@@ -230,12 +237,13 @@ path reconstruct_a_bi(ways const& w,
        .dist_ = 0});
 
   std::reverse(forward_segments.begin(), forward_segments.end());
-
+  std::cout << "reversed \n";
   forward_segments.insert(forward_segments.end(), backward_segments.begin(),
                           backward_segments.end());
 
   auto total_dist = start_node_candidate.dist_to_node_ + forward_dist +
                     backward_dist + end_node_candidate.dist_to_node_;
+  std::cout << "total dist \n";
 
   auto p =
       path{.cost_ = cost, .dist_ = total_dist, .segments_ = forward_segments};
@@ -604,10 +612,19 @@ std::optional<path> route(ways const& w,
   }
 
   // finding nc of meet_point
+  std::cout << "before run \n";
   a.run(w, *w.r_, max, blocked, dir);
+  std::cout << "after run \n";
+  cost_t cost = 0U;
 
-  auto cost = a.cost1_.at(a.meet_point.get_key()).cost(a.meet_point) +
-              a.cost2_.at(a.meet_point.get_key()).cost(a.meet_point);
+  if (a.cost1_.find(a.meet_point.get_key()) != a.cost1_.end()) {
+    cost += a.cost1_.at(a.meet_point.get_key()).cost(a.meet_point);
+  }
+  if (a.cost2_.find(a.meet_point.get_key()) != a.cost2_.end()) {
+    cost += a.cost2_.at(a.meet_point.get_key()).cost(a.meet_point);
+  }
+
+  std::cout << "before recons \n";
   return reconstruct_a_bi(w, blocked, a, start, end, cost, dir);
 
   /*auto const c = best_candidate(w, a, to.lvl_, to_match, max, dir);
