@@ -56,7 +56,7 @@ struct a_star_bi {
 
     auto const dist = newtonSqrt(dx * dx + dy * dy);
 
-    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
+    return dist / to_meters_per_second(speed_limit::kmh_120);
   }
 
   cost_t heuristic_to_start(label const l, ways const& w) {
@@ -96,30 +96,19 @@ struct a_star_bi {
     return it != end(cost2_) ? it->second.cost(n) : kInfeasible;
   }
 
-  double newtonSqrt(double x) {
-    double x1 = x;
-    double x2 = x / 2;
-    while (std::abs(x1 - x2) >= 0.0001) {
-      x1 = x2;
-      x2 = (x1 + x / x1) / 2;
-    }
-    return x2;
-  }
-
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
-
-    std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     std::cout << "run begin\n";
+
     std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
     while (!minHeap1_.empty() && !minHeap2_.empty()) {
       // std::cout << "in the while-loop run \n";
-      auto curr1 = run_start_to_end(w, r, max, blocked);
-      auto curr2 = run_end_to_start(w, r, max, blocked);
+      auto curr1 = run_start_to_end<SearchDir, WithBlocked>(w, r, max, blocked);
+      auto curr2 = run_end_to_start<SearchDir, WithBlocked>(w, r, max, blocked);
       // std::cout << "after finding currs\n";
       if (curr1 != std::nullopt) {
         if (!expanded_.contains(curr1.value())) {
@@ -150,6 +139,7 @@ struct a_star_bi {
     }
   }
 
+  template <direction SearchDir, bool WithBlocked>
   std::optional<node> run_start_to_end(ways const& w,
                                        ways::routing const& r,
                                        cost_t const max,
@@ -166,7 +156,7 @@ struct a_star_bi {
       return std::nullopt;  // TODO check for good return value
     }
 
-    Profile::template adjacent<direction::kForward, false>(
+    Profile::template adjacent<SearchDir, WithBlocked>(
         r, curr, blocked,
         [&](node const neighbor, std::uint32_t const cost, distance_t,
             way_idx_t const way, std::uint16_t, std::uint16_t) {
@@ -185,6 +175,7 @@ struct a_star_bi {
     return curr;
   }
 
+  template <direction SearchDir, bool WithBlocked>
   std::optional<node> run_end_to_start(ways const& w,
                                        ways::routing const& r,
                                        cost_t const max,
@@ -201,7 +192,7 @@ struct a_star_bi {
       return std::nullopt;  // TODO check for good return value
     }
     std::cout << "before adjecency end-start\n";
-    Profile::template adjacent<direction::kBackward, false>(
+    Profile::template adjacent<opposite(SearchDir), WithBlocked>(
         r, curr, blocked,
         [&](node const neighbor, std::uint32_t const cost, distance_t,
             way_idx_t const way, std::uint16_t, std::uint16_t) {
