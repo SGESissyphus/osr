@@ -170,11 +170,11 @@ path reconstruct_a_bi(ways const& w,
   auto forward_dist = 0.0;
 
   while (true) {
-    std::cout << "node that is being reconstructed in foward:"
+    std::cout << "node that is being reconstructed in forward: "
               << static_cast<std::uint32_t>(forward_n.n_)
               << std::endl;
     auto const& e = a.cost1_.at(forward_n.get_key());
-    std::cout << "reconstructing forward, while-loop \n";
+    //std::cout << "reconstructing forward, while-loop \n";
     auto const pred = e.pred(forward_n);
     if (pred.has_value()) {
       auto const expected_cost =
@@ -209,12 +209,12 @@ path reconstruct_a_bi(ways const& w,
   auto backward_dist = 0.0;
 
   while (true) {
-    std::cout << "node that is being reconstructed in backward:"
+    std::cout << "node that is being reconstructed in backward: "
               << static_cast<std::uint32_t>(backward_n.n_)
               << std::endl;
     auto const& e = a.cost2_.at(backward_n.get_key());
 
-    std::cout << "after at in backward loop ";
+    //std::cout << "after at in backward loop ";
     auto const pred = e.pred(backward_n);
     if (pred.has_value()) {
       auto const expected_cost =
@@ -261,11 +261,6 @@ path reconstruct_a_bi(ways const& w,
   // p); TODO:: what is this??
 
   return p;
-
-  // reconstruct from end_nc to meeting point
-
-  // if there is no meeting point, reconstruct whole path from start to and or
-  // end_nc to start
 }
 
 template <typename Profile>
@@ -368,123 +363,6 @@ path reconstruct(ways const& w,
                 .segments_ = segments};
   d.cost_.at(dest_node.get_key()).write(dest_node, p);
   return p;
-}
-
-template <typename Profile>
-std::optional<std::tuple<node_candidate const*,
-                         way_candidate const*,
-                         typename Profile::node,
-                         path>>
-best_candidate_from(ways const& w,
-               a_star_bi<Profile>& a,
-               level_t const lvl,
-               match_t const& m,
-               cost_t const max,
-               direction const dir) {
-  auto const get_best = [&](way_candidate const& dest,
-                            node_candidate const* x) {
-    auto best_node = typename Profile::node{};
-    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
-    Profile::resolve_all(*w.r_, x->node_, lvl, [&](auto&& node) {
-      if (!Profile::is_dest_reachable(*w.r_, node, dest.way_,
-                                      flip(opposite(dir), x->way_dir_),
-                                      opposite(dir))) {
-        return;
-      }
-
-      auto const target_cost = a.get_cost_from_start(node);
-      if (target_cost == kInfeasible) {
-        return;
-      }
-
-      auto const total_cost = target_cost + x->cost_;
-      if (total_cost < max && total_cost < best_cost.cost_) {
-        best_node = node;
-        best_cost.cost_ = static_cast<cost_t>(total_cost);
-      }
-    });
-    return std::pair{best_node, best_cost};
-  };
-
-  for (auto const& dest : m) {
-    auto best_node = typename Profile::node{};
-    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
-    auto best = static_cast<node_candidate const*>(nullptr);
-
-    for (auto const x : {&dest.left_, &dest.right_}) {
-      if (x->valid() && x->cost_ < max) {
-        auto const [x_node, x_cost] = get_best(dest, x);
-        if (x_cost.cost_ < max && x_cost.cost_ < best_cost.cost_) {
-          best = x;
-          best_node = x_node;
-          best_cost = x_cost;
-        }
-      }
-    }
-
-    if (best != nullptr) {
-      return std::tuple{best, &dest, best_node, best_cost};
-    }
-  }
-  return std::nullopt;
-}
-template <typename Profile>
-std::optional<std::tuple<node_candidate const*,
-                         way_candidate const*,
-                         typename Profile::node,
-                         path>>
-best_candidate_to(ways const& w,
-                  a_star_bi<Profile>& a,
-                  level_t const lvl,
-                  match_t const& m,
-                  cost_t const max,
-                  direction const dir) {
-  auto const get_best = [&](way_candidate const& dest,
-                            node_candidate const* x) {
-    auto best_node = typename Profile::node{};
-    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
-    Profile::resolve_all(*w.r_, x->node_, lvl, [&](auto&& node) {
-      if (!Profile::is_dest_reachable(*w.r_, node, dest.way_,
-                                      flip(opposite(dir), x->way_dir_),
-                                      opposite(dir))) {
-        return;
-      }
-
-      auto const target_cost = a.get_cost_from_end(node);
-      if (target_cost == kInfeasible) {
-        return;
-      }
-
-      auto const total_cost = target_cost + x->cost_;
-      if (total_cost < max && total_cost < best_cost.cost_) {
-        best_node = node;
-        best_cost.cost_ = static_cast<cost_t>(total_cost);
-      }
-    });
-    return std::pair{best_node, best_cost};
-  };
-
-  for (auto const& dest : m) {
-    auto best_node = typename Profile::node{};
-    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
-    auto best = static_cast<node_candidate const*>(nullptr);
-
-    for (auto const x : {&dest.left_, &dest.right_}) {
-      if (x->valid() && x->cost_ < max) {
-        auto const [x_node, x_cost] = get_best(dest, x);
-        if (x_cost.cost_ < max && x_cost.cost_ < best_cost.cost_) {
-          best = x;
-          best_node = x_node;
-          best_cost = x_cost;
-        }
-      }
-    }
-
-    if (best != nullptr) {
-      return std::tuple{best, &dest, best_node, best_cost};
-    }
-  }
-  return std::nullopt;
 }
 
 template <typename Profile>
