@@ -13,7 +13,9 @@ struct a_star_bi {
   using node_h = typename a_star<Profile>::node_h;
 
   void add_start(label const l, ways const& w) {
-    // std::cout << "add in heap1\n";
+    std::cout << "add in heap1: "
+        << static_cast<std::uint32_t>(l.n_)
+        << std::endl;
     if (cost1_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
       minHeap1_.push_back(node_h{l, 0, heuristic_to_end(l, w)});
@@ -21,7 +23,9 @@ struct a_star_bi {
   }
 
   void add_end(label const l, ways const& w) {
-    // std::cout << "add in heap2\n";
+    std::cout << "add in heap2: "
+              << static_cast<std::uint32_t>(l.n_)
+              << std::endl;
     if (cost2_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
       minHeap2_.push_back(node_h{l, 0, heuristic_to_start(l, w)});
@@ -31,8 +35,8 @@ struct a_star_bi {
   void reset(cost_t,
              location const& start_loc,
              location const& end_loc,
-             way_candidate start,
-             way_candidate end) {
+             match_t start,
+             match_t end) {
     minHeap1_.clear();
     minHeap2_.clear();
     cost1_.clear();
@@ -40,8 +44,8 @@ struct a_star_bi {
     expanded_.clear();
     start_loc_ = start_loc;
     end_loc_ = end_loc;
-    start_ = start;
-    end_ = end;
+    start_ = std::move(start);
+    end_ = std::move(end);
   }
 
   // TODO Heuristics
@@ -105,11 +109,12 @@ struct a_star_bi {
 
     std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
+
     while (!minHeap1_.empty() && !minHeap2_.empty()) {
-      // std::cout << "in the while-loop run \n";
+      std::cout << "in the while-loop run \n";
       auto curr1 = run_start_to_end<SearchDir, WithBlocked>(w, r, max, blocked);
       auto curr2 = run_end_to_start<SearchDir, WithBlocked>(w, r, max, blocked);
-      // std::cout << "after finding currs\n";
+      std::cout << "after finding currs\n";
       if (curr1 != std::nullopt) {
         if (!expanded_.contains(curr1.value())) {
           std::cout << "curr1 adds in expand: "
@@ -144,7 +149,7 @@ struct a_star_bi {
                                        ways::routing const& r,
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
-    std::cout << "run start to end \n";
+    //std::cout << "run start to end \n";
     std::pop_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     auto curr_node_h = minHeap1_.back();
     minHeap1_.pop_back();
@@ -180,7 +185,7 @@ struct a_star_bi {
                                        ways::routing const& r,
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
-    std::cout << "run end to start \n";
+    //std::cout << "run end to start \n";
     std::pop_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
     auto curr_node_h = minHeap2_.back();
     minHeap2_.pop_back();
@@ -191,7 +196,7 @@ struct a_star_bi {
     if (get_cost_from_end(curr) < l.cost()) {
       return std::nullopt;  // TODO check for good return value
     }
-    std::cout << "before adjecency end-start\n";
+    //std::cout << "before adjecency end-start\n";
     Profile::template adjacent<opposite(SearchDir), WithBlocked>(
         r, curr, blocked,
         [&](node const neighbor, std::uint32_t const cost, distance_t,
@@ -209,7 +214,7 @@ struct a_star_bi {
                            std::greater<node_h>{});
           }
         });
-    std::cout << "after adjecency end-start\n";
+    //std::cout << "after adjecency end-start\n";
     return curr;
   }
 
@@ -233,8 +238,8 @@ struct a_star_bi {
   std::vector<node_h> minHeap2_;
   location start_loc_;
   location end_loc_;
-  way_candidate start_;
-  way_candidate end_;
+  match_t start_;
+  match_t end_;
   hash_set<node> expanded_;
   node meet_point;
   ankerl::unordered_dense::map<key, entry, hash> cost1_;
