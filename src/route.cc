@@ -207,7 +207,7 @@ path reconstruct_a_bi(ways const& w,
   while (true) {
     std::cout << "before at in backward loop \n";
     auto const& e = a.cost2_.at(backward_n.get_key());
-    std::cout << "after at in backward loop ";
+    std::cout << "after at in backward loop \n";
     auto const pred = e.pred(backward_n);
     if (pred.has_value()) {
       auto const expected_cost =
