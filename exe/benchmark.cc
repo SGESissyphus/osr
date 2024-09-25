@@ -17,7 +17,9 @@
 #include "osr/routing/route.h"
 #include "osr/ways.h"
 
-
+#include "boost/algorithm/string.hpp"
+#include "boost/asio/post.hpp"
+#include "boost/beast/version.hpp"
 #include "boost/json.hpp"
 #include "osr/geojson.h"
 
@@ -100,10 +102,10 @@ int main(int argc, char const* argv[]) {
 
   auto const w = ways{opt.data_dir_, cista::mmap::protection::READ};
   lookup const& l = lookup(w);
-  bitvec<node_idx_t> const* blocked;
-  std::cout << "before parse location" << std::endl;
+  bitvec<node_idx_t> const* blocked = nullptr;
+  //std::cout << "before parse location" << std::endl;
   auto const locations = parse_locations_from_file(opt.location_file_);
-  std::cout << "after parse location" << std::endl;
+  //std::cout << "after parse location" << std::endl;
 
   auto timer = utl::scoped_timer{"timer"};
   auto threads = std::vector<std::thread>(std::max(1U, opt.threads_));
@@ -113,35 +115,38 @@ int main(int argc, char const* argv[]) {
     t = std::thread([&]() {
       auto h = cista::BASE_HASH;
       auto n1 = 0U;
-      auto n2 = 100U;
       if(opt.algorithm_ == "astar"){
         auto a_star_routing = a_star<car>{};
         while (i.fetch_add(1U)<opt.n_queries_){
+          //std::cout << "in the while schleife # " << j << std::endl;
           location to = locations[j++];
+          //std::cout << "lat of end " << to.pos_.lat_ << " lng of end " << to.pos_.lng_ <<std::endl;
+          to.lvl_ = level_t::invalid();
           location from = locations[j++];
+          //std::cout << "lat of start " << to.pos_.lat_ << " lng of start " << to.pos_.lng_ <<std::endl;
+          from.lvl_ = level_t::invalid();
+
           auto const from_match =
               l.match<car>(from, false, direction::kForward, 100, blocked);
           auto const to_match =
               l.match<car>(to, true, direction::kForward, 100, blocked);
-          auto p = route(w, l, a_star_routing, from, to, opt.max_dist_, direction::kForward, 100, blocked);
+          //std::cout << "before route" << std::endl;
+          route(w, l, a_star_routing, from, to, opt.max_dist_, direction::kForward, 100, blocked);
+          //std::cout << "after route" << std::endl;
         }
       }
       else{
         auto d = dijkstra<car>{};
-      while (i.fetch_add(1U) < opt.n_queries_) {
-        /*auto const start =
-            node_idx_t{cista::hash_combine(h, ++n1, i.load()) % w.n_nodes()};
-        d.reset(opt.max_dist_);
-        d.add_start(car::label{car::node{start, 0, direction::kForward}, 0U});
-        d.add_start(car::label{car::node{start, 0, direction::kBackward}, 0U});
-        d.run<direction::kForward, false>(*w.r_, opt.max_dist_, nullptr);*/
-        location to = locations[j++];
-        location from = locations[j++];
-        auto const from_match =
-            l.match<car>(from, false, direction::kForward, 100, blocked);
-        auto const to_match =
-            l.match<car>(to, true, direction::kForward, 100, blocked);
-        auto p = route(w, l, d, from, to, opt.max_dist_, direction::kForward, 100, blocked);
+        while (i.fetch_add(1U) < opt.n_queries_) {
+          location to = locations[j++];
+          to.lvl_ = level_t::invalid();
+          location from = locations[j++];
+          from.lvl_ = level_t::invalid();
+          auto const from_match =
+              l.match<car>(from, false, direction::kForward, 100, blocked);
+          auto const to_match =
+              l.match<car>(to, true, direction::kForward, 100, blocked);
+          route(w, l, d, from, to, opt.max_dist_, direction::kForward, 100, blocked);
       }
       }
     });
