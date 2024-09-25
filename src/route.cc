@@ -553,10 +553,15 @@ std::optional<path> route(ways const& w,
       if (a.minHeap2_.empty()) {
         continue;
       }
+      a.clear_meetpoint();
       std::cout << "before run \n";
       a.run(w, *w.r_, max, blocked, dir);
       std::cout << "after run \n";
       cost_t cost = 0U;
+      if (a.meet_point.get_node() == node_idx_t::invalid() ||
+          static_cast<uint32_t>(a.meet_point.get_node()) == 0) {
+        continue;
+      }
 
       if (a.cost1_.find(a.meet_point.get_key()) != a.cost1_.end()) {
         cost += a.cost1_.at(a.meet_point.get_key()).cost(a.meet_point);

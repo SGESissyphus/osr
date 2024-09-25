@@ -30,6 +30,8 @@ struct a_star_bi {
     }
   }
 
+  void clear_meetpoint() { meet_point = meet_point.invalid(); }
+
   void reset(cost_t,
              location const& start_loc,
              location const& end_loc,
@@ -40,6 +42,7 @@ struct a_star_bi {
     cost1_.clear();
     cost2_.clear();
     expanded_.clear();
+    meet_point.invalid();
     start_loc_ = start_loc;
     end_loc_ = end_loc;
     start_ = std::move(start);
