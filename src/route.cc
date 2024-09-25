@@ -537,28 +537,36 @@ std::optional<path> route(ways const& w,
     for (auto const* nc : {&start.left_, &start.right_}) {
       if (nc->valid() && nc->cost_ < max) {
         Profile::resolve_start_node(
-            *w.r_, start.way_, nc->node_, from.lvl_, dir,
-            [&](auto const node) { a.add_start({node, nc->cost_}, w); });
+            *w.r_, start.way_, nc->node_, from.lvl_,
+                                    dir, [&](auto const node) {
+                                      a.add_start({node, nc->cost_}, w);
+                                    });
       }
     }
-    if(a.minHeap1_.empty()){
+    if (a.minHeap1_.empty()) {
       continue;
     }
     for (auto const& end : to_match) {
       for (auto const* nc : {&end.left_, &end.right_}) {
         if (nc->valid() && nc->cost_ < max) {
-          Profile::resolve_start_node(
-              *w.r_, end.way_, nc->node_, to.lvl_, opposite(dir),
-              [&](auto const node) { a.add_end({node, nc->cost_}, w); });
+          Profile::resolve_start_node(*w.r_, end.way_, nc->node_, to.lvl_,
+                                      opposite(dir), [&](auto const node) {
+                                        a.add_end({node, nc->cost_}, w);
+                                      });
         }
       }
-      if (a.minHeap2_.empty()){
+      if (a.minHeap2_.empty()) {
         continue;
       }
+      a.clear_meetpoint();
       std::cout << "before run \n";
       a.run(w, *w.r_, max, blocked, dir);
       std::cout << "after run \n";
       cost_t cost = 0U;
+      if (a.meet_point.get_node() == node_idx_t::invalid() ||
+          static_cast<uint32_t>(a.meet_point.get_node()) == 0) {
+        continue;
+      }
 
       if (a.cost1_.find(a.meet_point.get_key()) != a.cost1_.end()) {
         cost += a.cost1_.at(a.meet_point.get_key()).cost(a.meet_point);

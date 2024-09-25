@@ -13,9 +13,8 @@ struct a_star_bi {
   using node_h = typename a_star<Profile>::node_h;
 
   void add_start(label const l, ways const& w) {
-    std::cout << "add in heap1: "
-        << static_cast<std::uint32_t>(l.n_)
-        << std::endl;
+    std::cout << "add in heap1: " << static_cast<std::uint32_t>(l.n_)
+              << std::endl;
     if (cost1_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
       minHeap1_.push_back(node_h{l, 0, heuristic_to_end(l, w)});
@@ -32,6 +31,8 @@ struct a_star_bi {
     }
   }
 
+  void clear_meetpoint() { meet_point = meet_point.invalid(); }
+
   void reset(cost_t,
              location const& start_loc,
              location const& end_loc,
@@ -39,6 +40,7 @@ struct a_star_bi {
              match_t end) {
     minHeap1_.clear();
     minHeap2_.clear();
+    meet_point = meet_point.invalid();
     cost1_.clear();
     cost2_.clear();
     expanded_.clear();
@@ -47,8 +49,6 @@ struct a_star_bi {
     start_ = std::move(start);
     end_ = std::move(end);
   }
-
-  // TODO Heuristics
 
   cost_t heuristic_to_end(label const l, ways const& w) {
     auto const node_coord =
@@ -85,7 +85,6 @@ struct a_star_bi {
     }
     return x2;
   }
-  // TODO get_cost not modified for bi-directional
   cost_t get_cost_from_start(node const n) const {
     // std::cout << "before find in get_cost_from\n";
     auto const it = cost1_.find(n.get_key());
@@ -149,7 +148,7 @@ struct a_star_bi {
                                        ways::routing const& r,
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
-    //std::cout << "run start to end \n";
+    // std::cout << "run start to end \n";
     std::pop_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     auto curr_node_h = minHeap1_.back();
     minHeap1_.pop_back();
@@ -158,7 +157,7 @@ struct a_star_bi {
     auto curr = l.get_node();
 
     if (get_cost_from_start(curr) < l.cost()) {
-      return std::nullopt;  // TODO check for good return value
+      return std::nullopt;
     }
 
     Profile::template adjacent<SearchDir, WithBlocked>(
@@ -185,7 +184,7 @@ struct a_star_bi {
                                        ways::routing const& r,
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
-    //std::cout << "run end to start \n";
+    // std::cout << "run end to start \n";
     std::pop_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
     auto curr_node_h = minHeap2_.back();
     minHeap2_.pop_back();
@@ -194,9 +193,9 @@ struct a_star_bi {
     auto curr = l.get_node();
 
     if (get_cost_from_end(curr) < l.cost()) {
-      return std::nullopt;  // TODO check for good return value
+      return std::nullopt;
     }
-    //std::cout << "before adjecency end-start\n";
+    // std::cout << "before adjecency end-start\n";
     Profile::template adjacent<opposite(SearchDir), WithBlocked>(
         r, curr, blocked,
         [&](node const neighbor, std::uint32_t const cost, distance_t,
@@ -214,7 +213,7 @@ struct a_star_bi {
                            std::greater<node_h>{});
           }
         });
-    //std::cout << "after adjecency end-start\n";
+    // std::cout << "after adjecency end-start\n";
     return curr;
   }
 

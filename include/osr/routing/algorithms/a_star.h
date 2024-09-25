@@ -87,7 +87,7 @@ struct a_star {
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
-    auto buffer = 500;
+    auto buffer = 1500;
 
     bool found = false;
 
