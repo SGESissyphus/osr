@@ -78,7 +78,7 @@ struct a_star {
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
     std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-    auto buffer = 500;
+    auto buffer = 1500;
 
     bool found = false;
 
