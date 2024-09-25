@@ -162,7 +162,8 @@ path reconstruct_a_bi(ways const& w,
   std::cout << "in reconstruct \n";
   // Get meeting point
   auto forward_n = a.meet_point;
-  std::cout << "meet point is: " << static_cast<std::uint32_t>(a.meet_point.n_)
+  std::cout << "meet point is: "
+            << static_cast<std::uint32_t>(a.meet_point.n_)
             << std::endl;
   auto forward_segments = std::vector<path::segment>{};
   // Von Meeting Point zu Start
@@ -170,9 +171,10 @@ path reconstruct_a_bi(ways const& w,
 
   while (true) {
     std::cout << "node that is being reconstructed in forward: "
-              << static_cast<std::uint32_t>(forward_n.n_) << std::endl;
+              << static_cast<std::uint32_t>(forward_n.n_)
+              << std::endl;
     auto const& e = a.cost1_.at(forward_n.get_key());
-    // std::cout << "reconstructing forward, while-loop \n";
+    //std::cout << "reconstructing forward, while-loop \n";
     auto const pred = e.pred(forward_n);
     if (pred.has_value()) {
       auto const expected_cost =
@@ -208,10 +210,11 @@ path reconstruct_a_bi(ways const& w,
 
   while (true) {
     std::cout << "node that is being reconstructed in backward: "
-              << static_cast<std::uint32_t>(backward_n.n_) << std::endl;
+              << static_cast<std::uint32_t>(backward_n.n_)
+              << std::endl;
     auto const& e = a.cost2_.at(backward_n.get_key());
 
-    // std::cout << "after at in backward loop ";
+    //std::cout << "after at in backward loop ";
     auto const pred = e.pred(backward_n);
     if (pred.has_value()) {
       auto const expected_cost =
@@ -225,8 +228,9 @@ path reconstruct_a_bi(ways const& w,
     backward_n = *pred;
   }
 
+
   auto const& end_node_candidate =
-      backward_n.get_node() == end.left_.node_ ? end.left_ : end.right_;
+      backward_n.get_node() ==end.left_.node_ ? end.left_ : end.right_;
 
   backward_segments.push_back(
       {.polyline_ = end_node_candidate.path_,
@@ -532,25 +536,23 @@ std::optional<path> route(ways const& w,
   for (auto const& start : from_match) {
     for (auto const* nc : {&start.left_, &start.right_}) {
       if (nc->valid() && nc->cost_ < max) {
-        Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
-                                    dir, [&](auto const node) {
-                                      a.add_start({node, nc->cost_}, w);
-                                    });
+        Profile::resolve_start_node(
+            *w.r_, start.way_, nc->node_, from.lvl_, dir,
+            [&](auto const node) { a.add_start({node, nc->cost_}, w); });
       }
     }
-    if (a.minHeap1_.empty()) {
+    if(a.minHeap1_.empty()){
       continue;
     }
     for (auto const& end : to_match) {
       for (auto const* nc : {&end.left_, &end.right_}) {
         if (nc->valid() && nc->cost_ < max) {
-          Profile::resolve_start_node(*w.r_, end.way_, nc->node_, to.lvl_,
-                                      opposite(dir), [&](auto const node) {
-                                        a.add_end({node, nc->cost_}, w);
-                                      });
+          Profile::resolve_start_node(
+              *w.r_, end.way_, nc->node_, to.lvl_, opposite(dir),
+              [&](auto const node) { a.add_end({node, nc->cost_}, w); });
         }
       }
-      if (a.minHeap2_.empty()) {
+      if (a.minHeap2_.empty()){
         continue;
       }
       std::cout << "before run \n";

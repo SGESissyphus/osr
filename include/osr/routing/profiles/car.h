@@ -174,15 +174,11 @@ struct car {
 
         auto const target_node_prop = w.node_properties_[target_node];
         if (node_cost(target_node_prop) == kInfeasible) {
-          std::cout << "node_cost(target_node_prop) == kInfeasible "
-                    << static_cast<std::uint32_t>(target_node) << std::endl;
           return;
         }
 
         auto const target_way_prop = w.way_properties_[way];
         if (way_cost(target_way_prop, way_dir, 0U) == kInfeasible) {
-          std::cout << "way_cost(target_way_prop, way_dir, 0U) == kInfeasible "
-                    << static_cast<std::uint32_t>(target_node) << std::endl;
           return;
         }
 
