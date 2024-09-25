@@ -39,6 +39,7 @@ struct a_star_bi {
              match_t end) {
     minHeap1_.clear();
     minHeap2_.clear();
+    meet_point = meet_point.invalid();
     cost1_.clear();
     cost2_.clear();
     expanded_.clear();
@@ -156,7 +157,7 @@ struct a_star_bi {
     auto curr = l.get_node();
 
     if (get_cost_from_start(curr) < l.cost()) {
-      return std::nullopt;  // TODO check for good return value
+      return std::nullopt;
     }
 
     Profile::template adjacent<SearchDir, WithBlocked>(
@@ -192,7 +193,7 @@ struct a_star_bi {
     auto curr = l.get_node();
 
     if (get_cost_from_end(curr) < l.cost()) {
-      return std::nullopt;  // TODO check for good return value
+      return std::nullopt;
     }
     // std::cout << "before adjecency end-start\n";
     Profile::template adjacent<opposite(SearchDir), WithBlocked>(
