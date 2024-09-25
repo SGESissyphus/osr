@@ -543,7 +543,7 @@ std::optional<path> route(ways const& w,
                                     });
       }
     }
-    if (a.minHeap1_.empty()) {
+    if (a.pq1_.empty()) {
       continue;
     }
     for (auto const& end : to_match) {
@@ -555,7 +555,7 @@ std::optional<path> route(ways const& w,
                                       });
         }
       }
-      if (a.minHeap2_.empty()) {
+      if (a.pq2_.empty()) {
         continue;
       }
       a.clear_meetpoint();

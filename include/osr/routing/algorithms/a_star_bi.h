@@ -12,12 +12,16 @@ struct a_star_bi {
   using hash = typename Profile::hash;
   using node_h = typename a_star<Profile>::node_h;
 
+  struct get_bucket {
+    cost_t operator()(node_h const& n) { return n.cost + n.heuristic; }
+  };
+
   void add_start(label const l, ways const& w) {
     std::cout << "add in heap1: " << static_cast<std::uint32_t>(l.n_)
               << std::endl;
     if (cost1_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
-      minHeap1_.push_back(node_h{l, 0, heuristic_to_end(l, w)});
+      pq1_.push(node_h{l, 0, heuristic_to_end(l, w)});
     }
   }
 
@@ -27,19 +31,22 @@ struct a_star_bi {
               << std::endl;
     if (cost2_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                               node::invalid())) {
-      minHeap2_.push_back(node_h{l, 0, heuristic_to_start(l, w)});
+      pq2_.push(node_h{l, 0, heuristic_to_start(l, w)});
     }
   }
 
   void clear_meetpoint() { meet_point = meet_point.invalid(); }
 
-  void reset(cost_t,
+  void reset(cost_t max,
              location const& start_loc,
              location const& end_loc,
              match_t start,
              match_t end) {
-    minHeap1_.clear();
-    minHeap2_.clear();
+    pq1_.clear();
+    pq2_.clear();
+    pq1_.n_buckets(max + 1U);
+    pq2_.n_buckets(max + 1U);
+
     meet_point = meet_point.invalid();
     cost1_.clear();
     cost2_.clear();
@@ -106,10 +113,10 @@ struct a_star_bi {
            bitvec<node_idx_t> const* blocked) {
     std::cout << "run begin\n";
 
-    std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
-    std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
+    /*std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
+    std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});*/
 
-    while (!minHeap1_.empty() && !minHeap2_.empty()) {
+    while (!pq1_.empty() && !pq2_.empty()) {
       std::cout << "in the while-loop run \n";
       auto curr1 = run_start_to_end<SearchDir, WithBlocked>(w, r, max, blocked);
       auto curr2 = run_end_to_start<SearchDir, WithBlocked>(w, r, max, blocked);
@@ -149,9 +156,10 @@ struct a_star_bi {
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
     // std::cout << "run start to end \n";
-    std::pop_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
-    auto curr_node_h = minHeap1_.back();
-    minHeap1_.pop_back();
+    //std::pop_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
+
+    auto curr_node_h = pq1_.pop();
+    //minHeap1_.pop_back();
 
     auto l = curr_node_h.l;
     auto curr = l.get_node();
@@ -171,9 +179,9 @@ struct a_star_bi {
             auto next = label{neighbor, static_cast<cost_t>(total)};
             next.track(l, r, way, neighbor.get_node());
             node_h next_h = node_h{next, next.cost_, heuristic_to_end(next, w)};
-            minHeap1_.push_back(next_h);
-            std::push_heap(minHeap1_.begin(), minHeap1_.end(),
-                           std::greater<node_h>{});
+            if(next_h.cost + next_h.heuristic < max) {
+              pq1_.push(next_h);
+            }
           }
         });
     return curr;
@@ -185,9 +193,8 @@ struct a_star_bi {
                                        cost_t const max,
                                        bitvec<node_idx_t> const* blocked) {
     // std::cout << "run end to start \n";
-    std::pop_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
-    auto curr_node_h = minHeap2_.back();
-    minHeap2_.pop_back();
+    //std::pop_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
+    auto curr_node_h = pq2_.pop();
 
     auto l = curr_node_h.l;
     auto curr = l.get_node();
@@ -208,9 +215,9 @@ struct a_star_bi {
             next.track(l, r, way, neighbor.get_node());
             node_h next_h =
                 node_h{next, next.cost_, heuristic_to_start(next, w)};
-            minHeap2_.push_back(next_h);
-            std::push_heap(minHeap2_.begin(), minHeap2_.end(),
-                           std::greater<node_h>{});
+            if(next_h.cost + next_h.heuristic < max) {
+              pq2_.push(next_h);
+            }
           }
         });
     // std::cout << "after adjecency end-start\n";
@@ -233,8 +240,11 @@ struct a_star_bi {
     }
   }
 
-  std::vector<node_h> minHeap1_;
-  std::vector<node_h> minHeap2_;
+
+  /*std::vector<node_h> minHeap1_;
+  std::vector<node_h> minHeap2_;*/
+  dial<node_h, get_bucket> pq1_{get_bucket{}};
+  dial<node_h, get_bucket> pq2_{get_bucket{}};
   location start_loc_;
   location end_loc_;
   match_t start_;
