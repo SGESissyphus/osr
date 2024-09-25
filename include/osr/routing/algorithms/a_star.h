@@ -19,17 +19,20 @@ struct a_star {
   void add_start(label const l, ways const& w) {
     if (cost_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                              node::invalid())) {
-      minHeap_.push_back(node_h{l, 0, heuristic(l, w)});
+      pq_.push(node_h{l, 0, heuristic(l, w)});
     }
   }
 
-  void reset(cost_t,
+  void reset(cost_t max,
              location const& end_loc,
              std::vector<way_candidate> to_match) {
-    minHeap_.clear();
+    pq_.clear();
+    pq_.n_buckets(max + 1U);
     cost_.clear();
     end_loc_ = end_loc;
-    to_match_ = to_match;
+    to_match_ = std::move(to_match);
+    sort_way_candidates(to_match_);
+    to_match_.resize(3);
   }
 
   cost_t heuristic(label const l, ways const& w) {
@@ -42,7 +45,7 @@ struct a_star {
 
     auto const dist = newtonSqrt(dx * dx + dy * dy);
 
-    return dist / to_meters_per_second(speed_limit::kmh_120);
+    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
   };
 
   double newtonSqrt(double x) {
@@ -59,12 +62,16 @@ struct a_star {
     cost_t priority() const {
       return static_cast<std::uint16_t>(cost + heuristic);
     }
-    bool operator>(const node_h& other) const {
-      return this->priority() > other.priority();
+    bool operator<(const node_h& other) const {
+      return this->priority() < other.priority();
     }
     Profile::label l;
     cost_t cost;
     cost_t heuristic;
+  };
+
+  struct get_bucket {
+    cost_t operator()(node_h const& n) { return n.cost + n.heuristic; }
   };
 
   cost_t get_cost(node const n) const {
@@ -72,40 +79,35 @@ struct a_star {
     return it != end(cost_) ? it->second.cost(n) : kInfeasible;
   }
 
+  void sort_way_candidates(std::vector<way_candidate>& to_match) {
+    std::sort(to_match.begin(), to_match.end(), [](const way_candidate& a, const way_candidate& b) {
+      return a.dist_to_way_ < b.dist_to_way_;
+    });
+  }
+
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
-    std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-    auto buffer = 500;
-
-    bool found = false;
-
-    while (!minHeap_.empty() && !to_match_.empty() && buffer > 0) {
-      std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-      auto curr_node_h = minHeap_.back();
-      minHeap_.pop_back();
+    //std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
+    while (!pq_.empty() && !to_match_.empty()) {
+      //std::pop_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
+      auto curr_node_h = pq_.pop();
+      //minHeap_.pop_back();
 
       auto l = curr_node_h.l;
 
-      if (!found) {
-        buffer = buffer + 2;
-        for (auto const& dest : to_match_) {
-          if (l.n_ == dest.right_.node_) {
-            found = true;
-          } else if (l.n_ == dest.left_.node_) {
-            found = true;
-          }
-        }
-      } else {
-        buffer--;
-      }
+      to_match_.erase(std::remove_if(to_match_.begin(), to_match_.end(),
+                                     [&](auto const& dest) {
+                                       return l.n_ == dest.right_.node_ ||
+                                              l.n_ == dest.left_.node_;
+                                     }),
+                      to_match_.end());
 
       if (get_cost(l.get_node()) < l.cost()) {
         continue;
       }
-
       auto const curr = l.get_node();
 
       Profile::template adjacent<SearchDir, WithBlocked>(
@@ -119,13 +121,11 @@ struct a_star {
               auto next = label{neighbor, static_cast<cost_t>(total)};
               next.track(l, r, way, neighbor.get_node());
               node_h next_h = node_h{next, next.cost_, heuristic(next, w)};
-              minHeap_.push_back(next_h);
-              std::push_heap(minHeap_.begin(), minHeap_.end(),
-                             std::greater<node_h>{});
+              pq_.push(next_h);
+              /*std::push_heap(minHeap_.begin(), minHeap_.end(),
+                             std::greater<node_h>{});*/
             }
           });
-
-      buffer--;
     }
   }
   //
@@ -144,9 +144,11 @@ struct a_star {
           : run<direction::kBackward, true>(w, r, max, blocked);
     }
   }
+  dial<node_h, get_bucket> pq_{get_bucket{}};
+  std::optional<label> end_node_label;
   location end_loc_;
   match_t to_match_;
-  std::vector<node_h> minHeap_;
+  //std::vector<node_h> minHeap_;
   ankerl::unordered_dense::map<key, entry, hash> cost_;
 };
 }  // namespace osr
