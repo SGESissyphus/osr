@@ -45,16 +45,6 @@ struct a_star {
     return dist / to_meters_per_second(speed_limit::kmh_120);
   };
 
-  /*
-  cost_t spherical_heuristic(label const l, ways const& w) {
-    auto const coord_node = w.get_node_pos(l.n_).as_latlng();
-    auto const end = end_loc_.pos_;
-
-    auto const dist = geo::distance(coord_node, end);
-
-    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
-  }
-  */
   double newtonSqrt(double x) {
     double x1 = x;
     double x2 = x / 2;
@@ -64,17 +54,6 @@ struct a_star {
     }
     return x2;
   }
-
-  /*
-  double FastInverseSqrt(double x) {
-    double xhalf = 0.5f * x;
-    int i = *(int*)&x;
-    i = 0x5f3759df - (i >> 1);
-    x = *(float*)&i;
-    x = x * (1.5f - xhalf * x * x);
-    return x;
-  }
-  */
 
   struct node_h {
     cost_t priority() const {
@@ -99,7 +78,7 @@ struct a_star {
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
     std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-    auto buffer = 300;
+    auto buffer = 500;
 
     bool found = false;
 
