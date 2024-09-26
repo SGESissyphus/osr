@@ -503,9 +503,7 @@ std::optional<path> route(ways const& w,
         continue;
       }
       a.clear_mp();
-      std::cout << "before run \n";
       a.run(w, *w.r_, max, blocked, dir);
-      std::cout << "after run \n";
       cost_t cost = 0U;
       if (a.meet_point.get_node() == node_idx_t::invalid() ||
           static_cast<uint32_t>(a.meet_point.get_node()) == 0) {
@@ -519,7 +517,6 @@ std::optional<path> route(ways const& w,
         cost += a.cost2_.at(a.meet_point.get_key()).cost(a.meet_point);
       }
 
-      std::cout << "before recons \n";
       return reconstruct_a_bi(w, blocked, a, start, end, cost, dir);
     }
   }
