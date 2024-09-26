@@ -42,7 +42,7 @@ struct a_star {
 
     auto const dist = newtonSqrt(dx * dx + dy * dy);
 
-    return dist / to_meters_per_second(speed_limit::kmh_120);
+    return Profile::heuristic(dist);
   };
 
   double newtonSqrt(double x) {

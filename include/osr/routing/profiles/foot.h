@@ -308,6 +308,10 @@ struct foot {
   static constexpr cost_t node_cost(node_properties const n) {
     return n.is_walk_accessible() ? (n.is_elevator() ? 90U : 0U) : kInfeasible;
   }
+
+  static constexpr cost_t heuristic(double dist) {
+    return dist / to_meters_per_second(speed_limit::kmh_10);
+  }
 };
 
 }  // namespace osr

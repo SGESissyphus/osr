@@ -239,6 +239,10 @@ struct car {
   static constexpr cost_t node_cost(node_properties const& n) {
     return n.is_car_accessible() ? 0U : kInfeasible;
   }
+
+  static constexpr cost_t heuristic(double dist) {
+    return dist / to_meters_per_second(speed_limit::kmh_120);
+  }
 };
 
 }  // namespace osr

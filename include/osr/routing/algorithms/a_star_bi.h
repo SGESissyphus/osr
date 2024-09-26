@@ -43,7 +43,6 @@ struct a_star_bi {
     cost1_.clear();
     cost2_.clear();
     expanded_.clear();
-    meet_point.invalid();
     start_loc_ = start_loc;
     end_loc_ = end_loc;
     start_ = std::move(start);
@@ -60,7 +59,7 @@ struct a_star_bi {
 
     auto const dist = newtonSqrt(dx * dx + dy * dy);
 
-    return dist / to_meters_per_second(speed_limit::kmh_120);
+    return Profile::heuristic(dist);
   }
 
   cost_t heuristic_to_start(label const l, ways const& w) {
@@ -73,7 +72,7 @@ struct a_star_bi {
 
     auto const dist = newtonSqrt(dx * dx + dy * dy);
 
-    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
+    return Profile::heuristic(dist);
   }
 
   double newtonSqrt(double x) {
@@ -85,6 +84,13 @@ struct a_star_bi {
     }
     return x2;
   }
+
+  cost_t get_cost_to_meetpoint(node const n) const {
+    auto const cost1 = get_cost_from_start(n);
+    auto const cost2 = get_cost_from_end(n);
+    return cost1 + cost2;
+  }
+
   cost_t get_cost_from_start(node const n) const {
     // std::cout << "before find in get_cost_from\n";
     auto const it = cost1_.find(n.get_key());
@@ -109,36 +115,46 @@ struct a_star_bi {
     std::make_heap(minHeap1_.begin(), minHeap1_.end(), std::greater<node_h>{});
     std::make_heap(minHeap2_.begin(), minHeap2_.end(), std::greater<node_h>{});
 
-    while (!minHeap1_.empty() && !minHeap2_.empty()) {
-      std::cout << "in the while-loop run \n";
+    auto buffer = 750;
+    bool found = false;
+    auto best_cost = kInfeasible;
+
+    while (!minHeap1_.empty() && !minHeap2_.empty() && buffer > 0) {
       auto curr1 = run_start_to_end<SearchDir, WithBlocked>(w, r, max, blocked);
       auto curr2 = run_end_to_start<SearchDir, WithBlocked>(w, r, max, blocked);
-      std::cout << "after finding currs\n";
+      // std::cout << "after finding currs\n";
       if (curr1 != std::nullopt) {
         if (!expanded_.contains(curr1.value())) {
-          std::cout << "curr1 adds in expand: "
-                    << static_cast<std::uint32_t>(curr1.value().n_)
-                    << std::endl;
+          // std::cout << "curr1 adds in expand: "
+          //           << static_cast<std::uint32_t>(curr1.value().n_)
+          //           << std::endl;
           expanded_.emplace(curr1.value());
-        } else {
+        } else if (get_cost_to_meetpoint(curr1.value()) < best_cost) {
           meet_point = curr1.value();
-          std::cout << "breaking because curr1 is already expanded:"
-                    << static_cast<std::uint32_t>(meet_point.n_) << std::endl;
-          return;
+          best_cost = get_cost_to_meetpoint(curr1.value());
+          // std::cout << "breaking because curr1 is already expanded:"
+          //           << static_cast<std::uint32_t>(meet_point.n_) <<
+          //           std::endl;
+          found = true;
         }
       }
       if (curr2 != std::nullopt) {
         if (!expanded_.contains(curr2.value())) {
-          std::cout << "curr2 adds in expand: "
-                    << static_cast<std::uint32_t>(curr2.value().n_)
-                    << std::endl;
+          // std::cout << "curr2 adds in expand: "
+          //           << static_cast<std::uint32_t>(curr2.value().n_)
+          //           << std::endl;
           expanded_.emplace(curr2.value());
-        } else {
+        } else if (get_cost_to_meetpoint(curr2.value()) < best_cost) {
           meet_point = curr2.value();
-          std::cout << "breaking because curr2 is already expanded:"
-                    << static_cast<std::uint32_t>(meet_point.n_) << std::endl;
-          return;
+          best_cost = get_cost_to_meetpoint(curr2.value());
+          // std::cout << "breaking because curr1 is already expanded:"
+          //           << static_cast<std::uint32_t>(meet_point.n_) <<
+          //           std::endl;
+          found = true;
         }
+      }
+      if (found) {
+        buffer--;
       }
     }
   }
