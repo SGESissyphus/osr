@@ -553,7 +553,7 @@ std::optional<path> route(ways const& w,
       if (a.minHeap2_.empty()) {
         continue;
       }
-      a.clear_meetpoint();
+      a.clear_mp();
       std::cout << "before run \n";
       a.run(w, *w.r_, max, blocked, dir);
       std::cout << "after run \n";

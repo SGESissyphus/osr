@@ -15,6 +15,7 @@ struct a_star {
   using node = typename Profile::node;
   using entry = typename Profile::entry;
   using hash = typename Profile::hash;
+  using cost_map = typename ankerl::unordered_dense::map<key, entry, hash>;
 
   void add_start(label const l, ways const& w) {
     if (cost_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
@@ -25,7 +26,7 @@ struct a_star {
 
   void reset(cost_t,
              location const& end_loc,
-             std::vector<way_candidate> to_match) {
+             std::vector<way_candidate> const& to_match) {
     minHeap_.clear();
     cost_.clear();
     end_loc_ = end_loc;
@@ -78,6 +79,7 @@ struct a_star {
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
     std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
+
     auto buffer = Profile::get_static_buffer();
     auto dynamic_buffer = Profile::get_dynamic_buffer();
     bool found = false;
@@ -92,9 +94,7 @@ struct a_star {
       if (!found) {
         buffer = buffer + dynamic_buffer;
         for (auto const& dest : to_match_) {
-          if (l.n_ == dest.right_.node_) {
-            found = true;
-          } else if (l.n_ == dest.left_.node_) {
+          if (l.n_ == dest.right_.node_ || l.n_ == dest.left_.node_) {
             found = true;
           }
         }
@@ -128,7 +128,7 @@ struct a_star {
       buffer--;
     }
   }
-  //
+
   void run(ways const& w,
            ways::routing const& r,
            cost_t const max,
