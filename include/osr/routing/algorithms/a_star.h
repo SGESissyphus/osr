@@ -78,8 +78,8 @@ struct a_star {
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
     std::make_heap(minHeap_.begin(), minHeap_.end(), std::greater<node_h>{});
-    auto buffer = 1500;
-
+    auto buffer = Profile::get_static_buffer();
+    auto dynamic_buffer = Profile::get_dynamic_buffer();
     bool found = false;
 
     while (!minHeap_.empty() && !to_match_.empty() && buffer > 0) {
@@ -90,7 +90,7 @@ struct a_star {
       auto l = curr_node_h.l;
 
       if (!found) {
-        buffer = buffer + 2;
+        buffer = buffer + dynamic_buffer;
         for (auto const& dest : to_match_) {
           if (l.n_ == dest.right_.node_) {
             found = true;
