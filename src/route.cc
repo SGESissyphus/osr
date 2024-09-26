@@ -259,61 +259,10 @@ path reconstruct_a_bi(ways const& w,
   return p;
 }
 
-template <typename Profile>
-path reconstruct_a(ways const& w,
-                   bitvec<node_idx_t> const* blocked,
-                   a_star<Profile> const& a,
-                   way_candidate const& start,
-                   node_candidate const& dest,
-                   typename Profile::node const dest_node,
-                   cost_t const cost,
-                   direction const dir) {
-  auto n = dest_node;
-  auto segments = std::vector<path::segment>{{.polyline_ = dest.path_,
-                                              .from_level_ = dest.lvl_,
-                                              .to_level_ = dest.lvl_,
-                                              .from_ = node_idx_t::invalid(),
-                                              .to_ = node_idx_t::invalid(),
-                                              .way_ = way_idx_t::invalid()}};
-  auto dist = 0.0;
-  while (true) {
-    auto const& e = a.cost_.at(n.get_key());
-    auto const pred = e.pred(n);
-    if (pred.has_value()) {
-      auto const expected_cost =
-          static_cast<cost_t>(e.cost(n) - a.get_cost(*pred));
-      dist += add_path<Profile>(w, *w.r_, blocked, *pred, n, expected_cost,
-                                segments, dir);
-    } else {
-      break;
-    }
-    n = *pred;
-  }
-
-  auto const& start_node =
-      n.get_node() == start.left_.node_ ? start.left_ : start.right_;
-  segments.push_back(
-      {.polyline_ = start_node.path_,
-       .from_level_ = start_node.lvl_,
-       .to_level_ = start_node.lvl_,
-       .from_ =
-           dir == direction::kBackward ? n.get_node() : node_idx_t::invalid(),
-       .to_ = dir == direction::kForward ? n.get_node() : node_idx_t::invalid(),
-       .way_ = way_idx_t::invalid(),
-       .cost_ = kInfeasible,
-       .dist_ = 0});
-  std::reverse(begin(segments), end(segments));
-  auto p = path{.cost_ = cost,
-                .dist_ = start_node.dist_to_node_ + dist + dest.dist_to_node_,
-                .segments_ = segments};
-  a.cost_.at(dest_node.get_key()).write(dest_node, p);
-  return p;
-}
-
-template <typename Profile>
+template <typename Profile, typename Algorithm>
 path reconstruct(ways const& w,
                  bitvec<node_idx_t> const* blocked,
-                 dijkstra<Profile> const& d,
+                 Algorithm const& d,
                  way_candidate const& start,
                  node_candidate const& dest,
                  typename Profile::node const dest_node,
@@ -618,8 +567,8 @@ std::optional<path> route(ways const& w,
 
     if (c.has_value()) {
       auto const [nc, wc, node, p] = *c;
-      return reconstruct_a<Profile>(w, blocked, a, start, *nc, node, p.cost_,
-                                    dir);
+      return reconstruct<Profile>(w, blocked, a, start, *nc, node, p.cost_,
+                                  dir);
     }
   }
   return std::nullopt;

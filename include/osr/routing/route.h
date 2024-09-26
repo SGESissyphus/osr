@@ -26,7 +26,6 @@ enum class search_profile : std::uint8_t {
 
 void sort_way_candidates(std::vector<way_candidate>& to_match);
 
-
 enum class routing_algorithm : std::uint8_t { kDijkstra, kAStar, kAStarBi };
 
 search_profile to_profile(std::string_view);
@@ -75,6 +74,27 @@ std::vector<std::optional<path>> route(
     std::function<bool(path const&)> const& = [](path const&) {
       return false;
     });
+
+template <typename Profile>
+std::optional<path> route(ways const& w,
+                          lookup const& l,
+                          a_star<Profile>& a,
+                          location const& from,
+                          location const& to,
+                          cost_t const max,
+                          direction const dir,
+                          double const max_match_distance,
+                          bitvec<node_idx_t> const* blocked);
+template <typename Profile>
+std::optional<path> route(ways const& w,
+                          lookup const& l,
+                          dijkstra<Profile>& d,
+                          location const& from,
+                          location const& to,
+                          cost_t const max,
+                          direction const dir,
+                          double const max_match_distance,
+                          bitvec<node_idx_t> const* blocked);
 
 std::optional<path> route(ways const&,
                           lookup const&,
