@@ -6,7 +6,9 @@
 #include "utl/to_vec.h"
 #include "utl/verify.h"
 
-#include "osr/routing/dijkstra.h"
+#include "osr/routing/algorithms/a_star.h"
+#include "osr/routing/algorithms/a_star_bi.h"
+#include "osr/routing/algorithms/dijkstra.h"
 #include "osr/routing/profiles/bike.h"
 #include "osr/routing/profiles/car.h"
 #include "osr/routing/profiles/car_parking.h"
@@ -25,6 +27,15 @@ search_profile to_profile(std::string_view s) {
       return search_profile::kCarParkingWheelchair;
   }
   throw utl::fail("{} is not a valid profile", s);
+}
+
+routing_algorithm to_algorithm(std::string_view s) {
+  switch (cista::hash(s)) {
+    case cista::hash("dijkstra"): return routing_algorithm::kDijkstra;
+    case cista::hash("a_star"): return routing_algorithm::kAStar;
+    case cista::hash("a_star_bi"): return routing_algorithm::kAStarBi;
+  }
+  throw utl::fail("{} is not a valid algorithm", s);
 }
 
 std::string_view to_str(search_profile const p) {
@@ -141,9 +152,99 @@ double add_path(ways const& w,
 }
 
 template <typename Profile>
+path reconstruct_a_bi(ways const& w,
+                      bitvec<node_idx_t> const* blocked,
+                      a_star_bi<Profile> const& a,
+                      way_candidate const& start,
+                      way_candidate const& end,
+                      cost_t const cost,
+                      direction const dir) {
+  auto forward_n = a.meet_point;
+  auto forward_segments = std::vector<path::segment>{};
+  auto forward_dist = 0.0;
+
+  while (true) {
+    auto const& e = a.cost1_.at(forward_n.get_key());
+    auto const pred = e.pred(forward_n);
+    if (pred.has_value()) {
+      auto const expected_cost =
+          static_cast<cost_t>(e.cost(forward_n) - a.get_cost_from_start(*pred));
+      forward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, forward_n,
+                                        expected_cost, forward_segments, dir);
+    } else {
+      break;
+    }
+    forward_n = *pred;
+  }
+
+  auto const& start_node_candidate =
+      forward_n.get_node() == start.left_.node_ ? start.left_ : start.right_;
+
+  forward_segments.push_back(
+      {.polyline_ = start_node_candidate.path_,
+       .from_level_ = start_node_candidate.lvl_,
+       .to_level_ = start_node_candidate.lvl_,
+       .from_ = dir == direction::kBackward ? forward_n.get_node()
+                                            : node_idx_t::invalid(),
+       .to_ = dir == direction::kForward ? forward_n.get_node()
+                                         : node_idx_t::invalid(),
+       .way_ = way_idx_t::invalid(),
+       .cost_ = kInfeasible,
+       .dist_ = 0});
+
+  auto backward_segments = std::vector<path::segment>{};
+  auto backward_n = a.meet_point;
+  auto backward_dist = 0.0;
+
+  while (true) {
+    auto const& e = a.cost2_.at(backward_n.get_key());
+
+    auto const pred = e.pred(backward_n);
+    if (pred.has_value()) {
+      auto const expected_cost =
+          static_cast<cost_t>(e.cost(backward_n) - a.get_cost_from_end(*pred));
+      backward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, backward_n,
+                                         expected_cost, backward_segments, dir);
+    } else {
+      break;
+    }
+    backward_n = *pred;
+  }
+
+  auto const& end_node_candidate =
+      backward_n.get_node() == end.left_.node_ ? end.left_ : end.right_;
+
+  backward_segments.push_back(
+      {.polyline_ = end_node_candidate.path_,
+       .from_level_ = end_node_candidate.lvl_,
+       .to_level_ = end_node_candidate.lvl_,
+       .from_ = dir == direction::kBackward ? forward_n.get_node()
+                                            : node_idx_t::invalid(),
+       .to_ = dir == direction::kForward ? forward_n.get_node()
+                                         : node_idx_t::invalid(),
+       .way_ = way_idx_t::invalid(),
+       .cost_ = kInfeasible,
+       .dist_ = 0});
+
+  std::reverse(forward_segments.begin(), forward_segments.end());
+  forward_segments.insert(forward_segments.end(), backward_segments.begin(),
+                          backward_segments.end());
+
+  auto total_dist = start_node_candidate.dist_to_node_ + forward_dist +
+                    backward_dist + end_node_candidate.dist_to_node_;
+
+  auto p =
+      path{.cost_ = cost, .dist_ = total_dist, .segments_ = forward_segments};
+
+  // a.cost1_.at(backward_n.get_node().get_key()).write(backward_n.get_node(), p); what is this?
+
+  return p;
+}
+
+template <typename Profile, typename Algorithm>
 path reconstruct(ways const& w,
                  bitvec<node_idx_t> const* blocked,
-                 dijkstra<Profile> const& d,
+                 Algorithm const& d,
                  way_candidate const& start,
                  node_candidate const& dest,
                  typename Profile::node const dest_node,
@@ -189,6 +290,65 @@ path reconstruct(ways const& w,
                 .segments_ = segments};
   d.cost_.at(dest_node.get_key()).write(dest_node, p);
   return p;
+}
+
+template <typename Profile>
+std::optional<std::tuple<node_candidate const*,
+                         way_candidate const*,
+                         typename Profile::node,
+                         path>>
+best_candidate(ways const& w,
+               a_star<Profile>& a,
+               level_t const lvl,
+               match_t const& m,
+               cost_t const max,
+               direction const dir) {
+  auto const get_best = [&](way_candidate const& dest,
+                            node_candidate const* x) {
+    auto best_node = typename Profile::node{};
+    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
+    Profile::resolve_all(*w.r_, x->node_, lvl, [&](auto&& node) {
+      if (!Profile::is_dest_reachable(*w.r_, node, dest.way_,
+                                      flip(opposite(dir), x->way_dir_),
+                                      opposite(dir))) {
+        return;
+      }
+
+      auto const target_cost = a.get_cost(node);
+      if (target_cost == kInfeasible) {
+        return;
+      }
+
+      auto const total_cost = target_cost + x->cost_;
+      if (total_cost < max && total_cost < best_cost.cost_) {
+        best_node = node;
+        best_cost.cost_ = static_cast<cost_t>(total_cost);
+      }
+    });
+    return std::pair{best_node, best_cost};
+  };
+
+  for (auto const& dest : m) {
+    auto best_node = typename Profile::node{};
+    auto best_cost = path{.cost_ = std::numeric_limits<cost_t>::max()};
+    auto best = static_cast<node_candidate const*>(nullptr);
+
+    for (auto const x : {&dest.left_, &dest.right_}) {
+      if (x->valid() && x->cost_ < max) {
+        auto const [x_node, x_cost] = get_best(dest, x);
+        if (x_cost.cost_ < max && x_cost.cost_ < best_cost.cost_) {
+          best = x;
+          best_node = x_node;
+          best_cost = x_cost;
+        }
+      }
+    }
+
+    if (best != nullptr) {
+      return std::tuple{best, &dest, best_node, best_cost};
+    }
+  }
+  return std::nullopt;
 }
 
 template <typename Profile>
@@ -269,6 +429,130 @@ std::optional<path> try_direct(osr::location const& from,
              : std::nullopt;
 }
 
+void sort_way_candidates(std::vector<way_candidate>& to_match) {
+  std::sort(to_match.begin(), to_match.end(),
+            [](const way_candidate& a, const way_candidate& b) {
+              return a.dist_to_way_ < b.dist_to_way_;
+            });
+}
+
+template <typename Profile>
+std::optional<path> route(ways const& w,
+                          lookup const& l,
+                          a_star_bi<Profile>& a,
+                          location const& from,
+                          location const& to,
+                          cost_t const max,
+                          direction const dir,
+                          double const max_match_distance,
+                          bitvec<node_idx_t> const* blocked) {
+  auto from_match =
+      l.match<Profile>(from, false, dir, max_match_distance, blocked);
+  auto to_match = l.match<Profile>(to, true, dir, max_match_distance, blocked);
+
+  if (from_match.empty() || to_match.empty()) {
+    return std::nullopt;
+  }
+
+  if (auto const direct = try_direct(from, to); direct.has_value()) {
+    return *direct;
+  }
+
+  a.reset(max, from, to, from_match, to_match);
+
+  for (auto const& start : from_match) {
+    for (auto const* nc : {&start.left_, &start.right_}) {
+      if (nc->valid() && nc->cost_ < max) {
+        Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
+                                    dir, [&](auto const node) {
+                                      a.add_start({node, nc->cost_}, w);
+                                    });
+      }
+    }
+    if (a.minHeap1_.empty()) {
+      continue;
+    }
+    for (auto const& end : to_match) {
+      for (auto const* nc : {&end.left_, &end.right_}) {
+        if (nc->valid() && nc->cost_ < max) {
+          Profile::resolve_start_node(*w.r_, end.way_, nc->node_, to.lvl_,
+                                      opposite(dir), [&](auto const node) {
+                                        a.add_end({node, nc->cost_}, w);
+                                      });
+        }
+      }
+      if (a.minHeap2_.empty()) {
+        continue;
+      }
+      a.clear_mp();
+      a.run(w, *w.r_, max, blocked, dir);
+      cost_t cost = 0U;
+      if (a.meet_point.get_node() == node_idx_t::invalid() ||
+          static_cast<uint32_t>(a.meet_point.get_node()) == 0) {
+        continue;
+      }
+
+      if (a.cost1_.find(a.meet_point.get_key()) != a.cost1_.end()) {
+        cost += a.cost1_.at(a.meet_point.get_key()).cost(a.meet_point);
+      }
+      if (a.cost2_.find(a.meet_point.get_key()) != a.cost2_.end()) {
+        cost += a.cost2_.at(a.meet_point.get_key()).cost(a.meet_point);
+      }
+
+      return reconstruct_a_bi(w, blocked, a, start, end, cost, dir);
+    }
+  }
+  return std::nullopt;
+}
+
+template <typename Profile>
+std::optional<path> route(ways const& w,
+                          lookup const& l,
+                          a_star<Profile>& a,
+                          location const& from,
+                          location const& to,
+                          cost_t const max,
+                          direction const dir,
+                          double const max_match_distance,
+                          bitvec<node_idx_t> const* blocked) {
+  auto const from_match =
+      l.match<Profile>(from, false, dir, max_match_distance, blocked);
+  auto const to_match =
+      l.match<Profile>(to, true, dir, max_match_distance, blocked);
+
+  if (from_match.empty() || to_match.empty()) {
+    return std::nullopt;
+  }
+
+  if (auto const direct = try_direct(from, to); direct.has_value()) {
+    return *direct;
+  }
+
+  a.reset(max, to, to_match);
+
+  for (auto const& start : from_match) {
+    for (auto const* nc : {&start.left_, &start.right_}) {
+      if (nc->valid() && nc->cost_ < max) {
+        Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
+                                    dir, [&](auto const node) {
+                                      a.add_start({node, nc->cost_}, w);
+                                    });
+      }
+    }
+
+    a.run(w, *w.r_, max, blocked, dir);
+
+    auto const c = best_candidate(w, a, to.lvl_, to_match, max, dir);
+
+    if (c.has_value()) {
+      auto const [nc, wc, node, p] = *c;
+      return reconstruct<Profile>(w, blocked, a, start, *nc, node, p.cost_,
+                                  dir);
+    }
+  }
+  return std::nullopt;
+}
+
 template <typename Profile>
 std::optional<path> route(ways const& w,
                           lookup const& l,
@@ -297,9 +581,10 @@ std::optional<path> route(ways const& w,
   for (auto const& start : from_match) {
     for (auto const* nc : {&start.left_, &start.right_}) {
       if (nc->valid() && nc->cost_ < max) {
-        Profile::resolve_start_node(
-            *w.r_, start.way_, nc->node_, from.lvl_, dir,
-            [&](auto const node) { d.add_start({node, nc->cost_}); });
+        Profile::resolve_start_node(*w.r_, start.way_, nc->node_, from.lvl_,
+                                    dir, [&](auto const node) {
+                                      d.add_start({node, nc->cost_});
+                                    });
       }
     }
 
@@ -399,6 +684,24 @@ dijkstra<Profile>& get_dijkstra() {
   return *s.get();
 }
 
+template <typename Profile>
+a_star<Profile>& get_a_star() {
+  static auto s = boost::thread_specific_ptr<a_star<Profile>>{};
+  if (s.get() == nullptr) {
+    s.reset(new a_star<Profile>{});
+  }
+  return *s.get();
+}
+
+template <typename Profile>
+a_star_bi<Profile>& get_a_star_bi() {
+  static auto s = boost::thread_specific_ptr<a_star_bi<Profile>>{};
+  if (s.get() == nullptr) {
+    s.reset(new a_star_bi<Profile>{});
+  }
+  return *s.get();
+}
+
 std::vector<std::optional<path>> route(
     ways const& w,
     lookup const& l,
@@ -436,12 +739,101 @@ std::vector<std::optional<path>> route(
 std::optional<path> route(ways const& w,
                           lookup const& l,
                           search_profile const profile,
+                          routing_algorithm const algo,
                           location const& from,
                           location const& to,
                           cost_t const max,
                           direction const dir,
                           double const max_match_distance,
                           bitvec<node_idx_t> const* blocked) {
+  switch (algo) {
+    case routing_algorithm::kDijkstra:
+      return route_dijkstra(w, l, profile, from, to, max, dir,
+                            max_match_distance, blocked);
+    case routing_algorithm::kAStar:
+      return route_a_star(w, l, profile, from, to, max, dir, max_match_distance,
+                          blocked);
+    case routing_algorithm::kAStarBi:
+      return route_a_star_bi(w, l, profile, from, to, max, dir,
+                             max_match_distance, blocked);
+  }
+  throw utl::fail("not implemented");
+}
+
+std::optional<path> route_a_star_bi(ways const& w,
+                                    lookup const& l,
+                                    search_profile const profile,
+                                    location const& from,
+                                    location const& to,
+                                    cost_t const max,
+                                    direction const dir,
+                                    double const max_match_distance,
+                                    bitvec<node_idx_t> const* blocked) {
+
+  switch (profile) {
+    case search_profile::kFoot:
+      return route(w, l, get_a_star_bi<foot<false, elevator_tracking>>(), from,
+                   to, max, dir, max_match_distance, blocked);
+    case search_profile::kWheelchair:
+      return route(w, l, get_a_star_bi<foot<true, elevator_tracking>>(), from,
+                   to, max, dir, max_match_distance, blocked);
+    case search_profile::kBike:
+      return route(w, l, get_a_star_bi<bike>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCar:
+      return route(w, l, get_a_star_bi<car>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCarParking:
+      return route(w, l, get_a_star_bi<car_parking<false>>(), from, to, max,
+                   dir, max_match_distance, blocked);
+    case search_profile::kCarParkingWheelchair:
+      return route(w, l, get_a_star_bi<car_parking<true>>(), from, to, max, dir,
+                   max_match_distance, blocked);
+  }
+  throw utl::fail("not implemented");
+}
+
+std::optional<path> route_a_star(ways const& w,
+                                 lookup const& l,
+                                 search_profile const profile,
+                                 location const& from,
+                                 location const& to,
+                                 cost_t const max,
+                                 direction const dir,
+                                 double const max_match_distance,
+                                 bitvec<node_idx_t> const* blocked) {
+  switch (profile) {
+    case search_profile::kFoot:
+      return route(w, l, get_a_star<foot<false, elevator_tracking>>(), from, to,
+                   max, dir, max_match_distance, blocked);
+    case search_profile::kWheelchair:
+      return route(w, l, get_a_star<foot<true, elevator_tracking>>(), from, to,
+                   max, dir, max_match_distance, blocked);
+    case search_profile::kBike:
+      return route(w, l, get_a_star<bike>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCar:
+      return route(w, l, get_a_star<car>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCarParking:
+      return route(w, l, get_a_star<car_parking<false>>(), from, to, max, dir,
+                   max_match_distance, blocked);
+    case search_profile::kCarParkingWheelchair:
+      return route(w, l, get_a_star<car_parking<true>>(), from, to, max, dir,
+                   max_match_distance, blocked);
+  }
+  throw utl::fail("not implemented");
+}
+
+std::optional<path> route_dijkstra(ways const& w,
+                                   lookup const& l,
+                                   search_profile const profile,
+                                   location const& from,
+                                   location const& to,
+                                   cost_t const max,
+                                   direction const dir,
+                                   double const max_match_distance,
+                                   bitvec<node_idx_t> const* blocked) {
   switch (profile) {
     case search_profile::kFoot:
       return route(w, l, get_dijkstra<foot<false, elevator_tracking>>(), from,
@@ -464,6 +856,18 @@ std::optional<path> route(ways const& w,
   }
   throw utl::fail("not implemented");
 }
+
+template a_star<foot<true, osr::noop_tracking>>&
+get_a_star<foot<true, osr::noop_tracking>>();
+
+template a_star<foot<false, osr::noop_tracking>>&
+get_a_star<foot<false, osr::noop_tracking>>();
+
+template a_star_bi<foot<true, osr::noop_tracking>>&
+get_a_star_bi<foot<true, osr::noop_tracking>>();
+
+template a_star_bi<foot<false, osr::noop_tracking>>&
+get_a_star_bi<foot<false, osr::noop_tracking>>();
 
 template dijkstra<foot<true, osr::noop_tracking>>&
 get_dijkstra<foot<true, osr::noop_tracking>>();
