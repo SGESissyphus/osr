@@ -204,7 +204,7 @@ path reconstruct_a_bi(ways const& w,
       auto const expected_cost =
           static_cast<cost_t>(e.cost(backward_n) - a.get_cost_from_end(*pred));
       backward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, backward_n,
-                                         expected_cost, backward_segments, dir);
+                                         expected_cost, backward_segments, opposite(dir));
     } else {
       break;
     }
@@ -236,7 +236,7 @@ path reconstruct_a_bi(ways const& w,
   auto p =
       path{.cost_ = cost, .dist_ = total_dist, .segments_ = forward_segments};
 
-  // a.cost1_.at(backward_n.get_node().get_key()).write(backward_n.get_node(), p); what is this?
+  a.cost2_.at(backward_n.get_key()).write(backward_n, p);
 
   return p;
 }
@@ -448,7 +448,8 @@ std::optional<path> route(ways const& w,
                           bitvec<node_idx_t> const* blocked) {
   auto from_match =
       l.match<Profile>(from, false, dir, max_match_distance, blocked);
-  auto to_match = l.match<Profile>(to, true, dir, max_match_distance, blocked);
+  auto to_match =
+      l.match<Profile>(to, true, dir, max_match_distance, blocked);
 
   if (from_match.empty() || to_match.empty()) {
     return std::nullopt;
@@ -458,7 +459,7 @@ std::optional<path> route(ways const& w,
     return *direct;
   }
 
-  a.reset(max, from, to, from_match, to_match);
+  a.reset(max, from, to);
 
   for (auto const& start : from_match) {
     for (auto const* nc : {&start.left_, &start.right_}) {

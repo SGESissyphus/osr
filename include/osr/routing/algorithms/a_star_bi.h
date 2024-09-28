@@ -29,13 +29,13 @@ struct a_star_bi {
     add(l, w, start_loc_, cost2_, minHeap2_);
   }
 
-  void clear_mp() { meet_point = meet_point.invalid(); }
+  void clear_mp() {
+   meet_point = meet_point.invalid();
+  }
 
   void reset(cost_t,
              location const& start_loc,
-             location const& end_loc,
-             match_t const& start,
-             match_t const& end) {
+             location const& end_loc) {
     minHeap1_.clear();
     minHeap2_.clear();
     meet_point = meet_point.invalid();
@@ -44,8 +44,6 @@ struct a_star_bi {
     expanded_.clear();
     start_loc_ = start_loc;
     end_loc_ = end_loc;
-    start_ = start;
-    end_ = end;
   }
 
   cost_t heuristic(label const l, ways const& w, location const& loc) {
@@ -139,6 +137,7 @@ struct a_star_bi {
 
     auto buffer = 750;
     bool found = false;
+    found_start = true;
     auto best_cost = kInfeasible;
 
     while (!minHeap1_.empty() && !minHeap2_.empty() && buffer > 0) {
@@ -154,19 +153,23 @@ struct a_star_bi {
       );
 
       if (curr1 != std::nullopt) {
-        if (!expanded_.contains(curr1.value())) {
-          expanded_.emplace(curr1.value());
+        if (!expanded_.contains(curr1.value().n_)) {
+          expanded_.emplace(curr1.value().n_);
+
         } else if (get_cost_to_mp(curr1.value()) < best_cost) {
           meet_point = curr1.value();
+          found_start = true;
           best_cost = get_cost_to_mp(curr1.value());
           found = true;
         }
       }
       if (curr2 != std::nullopt) {
-        if (!expanded_.contains(curr2.value())) {
-          expanded_.emplace(curr2.value());
+        if (!expanded_.contains(curr2.value().n_)) {
+          expanded_.emplace(curr2.value().n_);
+
         } else if (get_cost_to_mp(curr2.value()) < best_cost) {
           meet_point = curr2.value();
+          found_start = false;
           best_cost = get_cost_to_mp(curr2.value());
           found = true;
         }
@@ -197,10 +200,9 @@ struct a_star_bi {
   std::vector<node_h> minHeap2_;
   location start_loc_;
   location end_loc_;
-  match_t start_;
-  match_t end_;
-  hash_set<node> expanded_;
+  hash_set<node_idx_t> expanded_;
   node meet_point;
+  bool found_start;
   ankerl::unordered_dense::map<key, entry, hash> cost1_;
   ankerl::unordered_dense::map<key, entry, hash> cost2_;
 
