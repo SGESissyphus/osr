@@ -34,7 +34,8 @@ public:
     param(threads_, "threads,t", "Number of routing threads");
     param(n_queries_, "n", "Number of queries");
     param(max_dist_, "r", "Radius");
-    param(algorithm_, "algorithm", "Routing algorithm (dijkstra, astar)");
+    param(algorithm_, "algorithm",
+          "Routing algorithm (dijkstra, astar, bidir)");
     param(location_file_, "locations", "Path to file with locations to parse");
   }
 
@@ -107,14 +108,12 @@ int main(int argc, char const* argv[]) {
   auto const w = ways{opt.data_dir_, cista::mmap::protection::READ};
   lookup const& l = lookup(w);
   bitvec<node_idx_t> const* blocked = nullptr;
-  // std::cout << "before parse location" << std::endl;
   auto const locations = parse_locations_from_file(opt.location_file_);
-  // std::cout << "after parse location" << std::endl;
 
   auto timer = utl::scoped_timer{"timer"};
   auto threads = std::vector<std::thread>(std::max(1U, opt.threads_));
   auto i = std::atomic_size_t{0U};
-  auto j = 0;
+  auto j = std::atomic_size_t{0U};
   for (auto& t : threads) {
     t = std::thread([&]() {
       auto h = cista::BASE_HASH;
@@ -122,38 +121,74 @@ int main(int argc, char const* argv[]) {
       if (opt.algorithm_ == "astar") {
         auto a_star_routing = a_star<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
-          // std::cout << "in the while schleife # " << j << std::endl;
-          location to = locations[j++];
-          // std::cout << "lat of end " << to.pos_.lat_ << " lng of end " <<
-          // to.pos_.lng_ <<std::endl;
-          to.lvl_ = level_t::invalid();
-          location from = locations[j++];
-          // std::cout << "lat of start " << to.pos_.lat_ << " lng of start " <<
-          // to.pos_.lng_ <<std::endl;
+          auto local_j =
+              j.fetch_add(2U);  // Fetch and increment j by 2 for each thread
+
+          // Read two consecutive entries from locations for 'from' and 'to'
+          if (local_j + 1 >= locations.size()) {
+            break;  // Prevent out-of-bounds access
+          }
+
+          location from = locations[local_j];
           from.lvl_ = level_t::invalid();
+
+          location to = locations[local_j + 1];
+          to.lvl_ = level_t::invalid();
 
           auto const from_match =
               l.match<car>(from, false, direction::kForward, 100, blocked);
           auto const to_match =
               l.match<car>(to, true, direction::kForward, 100, blocked);
-          // std::cout << "before route" << std::endl;
-          route(w, l, a_star_routing, from, to, opt.max_dist_,
-                direction::kForward, 100, blocked);
-          // std::cout << "after route" << std::endl;
+          auto p = route(w, l, a_star_routing, from, to, opt.max_dist_,
+                         direction::kForward, 100, blocked);
         }
-      } else {
-        auto d = dijkstra<car>{};
+      } else if (opt.algorithm_ == "bidir") {
+        auto b = a_star_bi<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
-          location to = locations[j++];
-          to.lvl_ = level_t::invalid();
-          location from = locations[j++];
+          auto local_j =
+              j.fetch_add(2U);  // Fetch and increment j by 2 for each thread
+
+          // Read two consecutive entries from locations for 'from' and 'to'
+          if (local_j + 1 >= locations.size()) {
+            break;  // Prevent out-of-bounds access
+          }
+
+          location from = locations[local_j];
           from.lvl_ = level_t::invalid();
+
+          location to = locations[local_j + 1];
+          to.lvl_ = level_t::invalid();
+
           auto const from_match =
               l.match<car>(from, false, direction::kForward, 100, blocked);
           auto const to_match =
               l.match<car>(to, true, direction::kForward, 100, blocked);
-          route(w, l, d, from, to, opt.max_dist_, direction::kForward, 100,
-                blocked);
+          auto p = route(w, l, b, from, to, opt.max_dist_, direction::kForward,
+                         100, blocked);
+        }
+      } else {
+        auto d = dijkstra<car>{};
+        while (i.fetch_add(1U) < opt.n_queries_) {
+          auto local_j =
+              j.fetch_add(2U);  // Fetch and increment j by 2 for each thread
+
+          // Read two consecutive entries from locations for 'from' and 'to'
+          if (local_j + 1 >= locations.size()) {
+            break;  // Prevent out-of-bounds access
+          }
+
+          location from = locations[local_j];
+          from.lvl_ = level_t::invalid();
+
+          location to = locations[local_j + 1];
+          to.lvl_ = level_t::invalid();
+
+          auto const from_match =
+              l.match<car>(from, false, direction::kForward, 100, blocked);
+          auto const to_match =
+              l.match<car>(to, true, direction::kForward, 100, blocked);
+          auto p = route(w, l, d, from, to, opt.max_dist_, direction::kForward,
+                         100, blocked);
         }
       }
     });
