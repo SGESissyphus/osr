@@ -122,7 +122,7 @@ struct http_server::impl {
     auto const to = parse_location(q.at("destination"));
     auto const max_it = q.find("max");
     auto const max = static_cast<cost_t>(
-        max_it == q.end() ? 3600 : max_it->value().as_int64());
+        max_it == q.end() ? 14000 : max_it->value().as_int64());
     auto const p =
         route(w_, l_, profile, routing_algo, from, to, max, dir, 100);
     if (!p.has_value()) {

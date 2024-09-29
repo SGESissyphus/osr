@@ -25,7 +25,7 @@ struct a_star {
 
   void reset(cost_t max,
              location const& end_loc,
-             std::vector<way_candidate> to_match) {
+             std::vector<way_candidate> const& to_match) {
     pq_.clear();
     pq_.n_buckets(max + 1U);
 
@@ -42,9 +42,9 @@ struct a_star {
     auto const dx = start_coord.x_ - end_node.x_;
     auto const dy = start_coord.y_ - end_node.y_;
 
-    auto const dist = newtonSqrt(dx * dx + dy * dy);
+    auto const dist = std::sqrt(dx * dx + dy * dy);
 
-    return dist / to_meters_per_second(static_cast<speed_limit>(5U));
+    return dist / to_meters_per_second(speed_limit::kmh_120);
   };
 
   double newtonSqrt(double x) {
@@ -87,7 +87,8 @@ struct a_star {
            ways::routing const& r,
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
-    auto buffer = 1500;
+
+    auto buffer = Profile::get_static_buffer();
 
     bool found = false;
 
@@ -96,7 +97,7 @@ struct a_star {
       auto l = curr_node_h.l;
 
       if (!found) {
-        buffer = buffer + 2;
+        buffer = buffer + Profile::get_dynamic_buffer();
         for (auto const& dest : to_match_) {
           if (l.n_ == dest.right_.node_) {
             found = true;
