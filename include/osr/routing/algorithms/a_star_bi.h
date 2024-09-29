@@ -13,24 +13,9 @@ struct a_star_bi {
   using node_h = typename a_star<Profile>::node_h;
   using cost_map = typename ankerl::unordered_dense::map<key, entry, hash>;
 
-
   struct get_bucket {
     cost_t operator()(node_h const& n) { return n.cost + n.heuristic; }
   };
-
-  /*void add_start(label const l, ways const& w) {
-    if (cost1_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
-                                              node::invalid())) {
-      pq1_.push(node_h{l, 0, heuristic_to_end(l, w)});
-    }
-  }
-
-  void add_end(label const l, ways const& w) {
-    if (cost2_[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
-                                              node::invalid())) {
-      pq2_.push(node_h{l, 0, heuristic_to_start(l, w)});
-    }
-  }*/
 
   void add(label const l, ways const& w, location const& loc, cost_map& cost, dial<node_h, get_bucket>& d) {
     if (cost[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
@@ -73,38 +58,12 @@ struct a_star_bi {
     auto const dx = node_coord.x_ - loc_coord.x_;
     auto const dy = node_coord.y_ - loc_coord.y_;
 
-    auto const dist = newtonSqrt(dx * dx + dy * dy);
+    auto const dist = std::sqrt(dx * dx + dy * dy);
 
     return Profile::heuristic(dist);
   }
 
-  /*cost_t heuristic_to_end(label const l, ways const& w) {
-    auto const node_coord =
-        geo::latlng_to_merc(w.get_node_pos(l.n_).as_latlng());
-    auto const end_node = geo::latlng_to_merc(end_loc_.pos_);
-
-    auto const dx = node_coord.x_ - end_node.x_;
-    auto const dy = node_coord.y_ - end_node.y_;
-
-    auto const dist = std::sqrt(dx * dx + dy * dy);
-
-    return dist / to_meters_per_second(speed_limit::kmh_120);
-  }
-
-  cost_t heuristic_to_start(label const l, ways const& w) {
-    auto const node_coord =
-        geo::latlng_to_merc(w.get_node_pos(l.n_).as_latlng());
-    auto const start_node = geo::latlng_to_merc(start_loc_.pos_);
-
-    auto const dx = node_coord.x_ - start_node.x_;
-    auto const dy = node_coord.y_ - start_node.y_;
-
-    auto const dist = std::sqrt(dx * dx + dy * dy);
-
-    return dist / to_meters_per_second(speed_limit::kmh_120);
-  }*/
-
-  double newtonSqrt(double x) {
+  /*double newtonSqrt(double x) {
     double x1 = x;
     double x2 = x / 2;
     while (std::abs(x1 - x2) >= 0.0001) {
@@ -112,7 +71,7 @@ struct a_star_bi {
       x2 = (x1 + x / x1) / 2;
     }
     return x2;
-  }
+  }*/
 
   cost_t get_cost_from_start(node const n) const {
     auto const it = cost1_.find(n.get_key());
@@ -216,70 +175,6 @@ struct a_star_bi {
     }
   }
 
-  /*template <direction SearchDir, bool WithBlocked>
-  std::optional<node> run_start_to_end(ways const& w,
-                                       ways::routing const& r,
-                                       cost_t const max,
-                                       bitvec<node_idx_t> const* blocked) {
-    auto curr_node_h = pq1_.pop();
-    auto l = curr_node_h.l;
-    auto curr = l.get_node();
-
-    if (get_cost_from_start(curr) < l.cost()) {
-      return std::nullopt;
-    }
-
-    Profile::template adjacent<SearchDir, WithBlocked>(
-        r, curr, blocked,
-        [&](node const neighbor, std::uint32_t const cost, distance_t,
-            way_idx_t const way, std::uint16_t, std::uint16_t) {
-          auto const total = l.cost() + cost;
-          if (total < max &&
-              cost1_[neighbor.get_key()].update(
-                  l, neighbor, static_cast<cost_t>(total), curr)) {
-            auto next = label{neighbor, static_cast<cost_t>(total)};
-            next.track(l, r, way, neighbor.get_node());
-            node_h next_h = node_h{next, next.cost_, heuristic_to_end(next, w)};
-            if(next_h.cost + next_h.heuristic < max) {
-              pq1_.push(next_h);
-            }
-          }
-        });
-    return curr;
-  }
-
-  template <direction SearchDir, bool WithBlocked>
-  std::optional<node> run_end_to_start(ways const& w,
-                                       ways::routing const& r,
-                                       cost_t const max,
-                                       bitvec<node_idx_t> const* blocked) {
-    auto curr_node_h = pq2_.pop();
-
-    auto l = curr_node_h.l;
-    auto curr = l.get_node();
-
-    if (get_cost_from_end(curr) < l.cost()) {
-      return std::nullopt;
-    }
-    Profile::template adjacent<opposite(SearchDir), WithBlocked>(
-        r, curr, blocked,
-        [&](node const neighbor, std::uint32_t const cost, distance_t,
-            way_idx_t const way, std::uint16_t, std::uint16_t) {
-          auto const total = l.cost() + cost;
-          if (total < max &&
-              cost2_[neighbor.get_key()].update(
-                  l, neighbor, static_cast<cost_t>(total), curr)) {
-            auto next = label{neighbor, static_cast<cost_t>(total)};
-            next.track(l, r, way, neighbor.get_node());
-            node_h next_h =
-                node_h{next, next.cost_, heuristic_to_start(next, w)};
-            if(next_h.cost + next_h.heuristic < max) {
-              pq2_.push(next_h);
-            }
-          }
-        });
-    return curr;
-  }*/
 
   void run(ways const& w,
            ways::routing const& r,
@@ -306,6 +201,6 @@ struct a_star_bi {
   ankerl::unordered_dense::map<key, entry, hash> cost1_;
   ankerl::unordered_dense::map<key, entry, hash> cost2_;
 
-};  // struct a_star_bi
+};
 
 }  // namespace osr

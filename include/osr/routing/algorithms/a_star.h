@@ -44,10 +44,10 @@ struct a_star {
 
     auto const dist = std::sqrt(dx * dx + dy * dy);
 
-    return dist / to_meters_per_second(speed_limit::kmh_120);
+    return Profile::heuristic(dist);
   };
 
-  double newtonSqrt(double x) {
+/*double newtonSqrt(double x) {
     double x1 = x;
     double x2 = x / 2;
     while (std::abs(x1 - x2) >= 0.0001) {
@@ -55,7 +55,7 @@ struct a_star {
       x2 = (x1 + x / x1) / 2;
     }
     return x2;
-  }
+  }*/
 
   struct node_h {
     cost_t priority() const {
@@ -133,7 +133,7 @@ struct a_star {
           });
     }
   }
-  //
+
   void run(ways const& w,
            ways::routing const& r,
            cost_t const max,
