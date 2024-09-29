@@ -122,7 +122,9 @@ struct a_star_bi {
             auto next = label{neighbor, static_cast<cost_t>(total)};
             next.track(l, r, way, neighbor.get_node());
             node_h next_h = node_h{next, next.cost_, heuristic(next, w, loc)};
-            d.push(next_h);
+            if(next_h.cost + next_h.heuristic < max) {
+              d.push(next_h);
+            }
           }
         });
     return curr;
