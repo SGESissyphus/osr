@@ -159,20 +159,12 @@ path reconstruct_a_bi(ways const& w,
                       way_candidate const& end,
                       cost_t const cost,
                       direction const dir) {
-  std::cout << "in reconstruct \n";
-  // Get meeting point
   auto forward_n = a.meet_point;
-  std::cout << "meet point is: " << static_cast<std::uint32_t>(a.meet_point.n_)
-            << std::endl;
   auto forward_segments = std::vector<path::segment>{};
-  // Von Meeting Point zu Start
   auto forward_dist = 0.0;
 
   while (true) {
-    std::cout << "node that is being reconstructed in forward: "
-              << static_cast<std::uint32_t>(forward_n.n_) << std::endl;
     auto const& e = a.cost1_.at(forward_n.get_key());
-    // std::cout << "reconstructing forward, while-loop \n";
     auto const pred = e.pred(forward_n);
     if (pred.has_value()) {
       auto const expected_cost =
@@ -180,7 +172,6 @@ path reconstruct_a_bi(ways const& w,
       forward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, forward_n,
                                         expected_cost, forward_segments, dir);
     } else {
-      std::cout << "break in forward while loop\n";
       break;
     }
     forward_n = *pred;
@@ -201,25 +192,20 @@ path reconstruct_a_bi(ways const& w,
        .cost_ = kInfeasible,
        .dist_ = 0});
 
-  // Von Meeting Point zu End
   auto backward_segments = std::vector<path::segment>{};
   auto backward_n = a.meet_point;
   auto backward_dist = 0.0;
 
   while (true) {
-    std::cout << "node that is being reconstructed in backward: "
-              << static_cast<std::uint32_t>(backward_n.n_) << std::endl;
     auto const& e = a.cost2_.at(backward_n.get_key());
 
-    // std::cout << "after at in backward loop ";
     auto const pred = e.pred(backward_n);
     if (pred.has_value()) {
       auto const expected_cost =
           static_cast<cost_t>(e.cost(backward_n) - a.get_cost_from_end(*pred));
       backward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, backward_n,
-                                         expected_cost, backward_segments, dir);
+                                         expected_cost, backward_segments, opposite(dir));
     } else {
-      std::cout << "break backward loop \n";
       break;
     }
     backward_n = *pred;
@@ -241,20 +227,16 @@ path reconstruct_a_bi(ways const& w,
        .dist_ = 0});
 
   std::reverse(forward_segments.begin(), forward_segments.end());
-  std::cout << "reversed \n";
   forward_segments.insert(forward_segments.end(), backward_segments.begin(),
                           backward_segments.end());
 
   auto total_dist = start_node_candidate.dist_to_node_ + forward_dist +
                     backward_dist + end_node_candidate.dist_to_node_;
 
-  std::cout << "total dist \n";
-
   auto p =
       path{.cost_ = cost, .dist_ = total_dist, .segments_ = forward_segments};
 
-  // a.cost1_.at(backward_n.get_node().get_key()).write(backward_n.get_node(),
-  // p); TODO:: what is this??
+  a.cost2_.at(backward_n.get_key()).write(backward_n, p);
 
   return p;
 }
@@ -476,7 +458,7 @@ std::optional<path> route(ways const& w,
     return *direct;
   }
 
-  a.reset(max, from, to, from_match, to_match);
+  a.reset(max, from, to);
 
   for (auto const& start : from_match) {
     for (auto const* nc : {&start.left_, &start.right_}) {

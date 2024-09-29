@@ -78,6 +78,16 @@ std::vector<std::optional<path>> route(
 template <typename Profile>
 std::optional<path> route(ways const& w,
                           lookup const& l,
+                          a_star_bi<Profile>& a,
+                          location const& from,
+                          location const& to,
+                          cost_t const max,
+                          direction const dir,
+                          double const max_match_distance,
+                          bitvec<node_idx_t> const* blocked);
+template <typename Profile>
+std::optional<path> route(ways const& w,
+                          lookup const& l,
                           a_star<Profile>& a,
                           location const& from,
                           location const& to,

@@ -41,7 +41,7 @@ struct a_star {
     auto const dx = start_coord.x_ - end_node.x_;
     auto const dy = start_coord.y_ - end_node.y_;
 
-    auto const dist = newtonSqrt(dx * dx + dy * dy);
+    auto const dist = std::sqrt(dx * dx + dy * dy);
 
     return Profile::heuristic(dist);
   };

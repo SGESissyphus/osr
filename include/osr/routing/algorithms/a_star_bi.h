@@ -33,9 +33,7 @@ struct a_star_bi {
 
   void reset(cost_t,
              location const& start_loc,
-             location const& end_loc,
-             match_t const& start,
-             match_t const& end) {
+             location const& end_loc) {
     minHeap1_.clear();
     minHeap2_.clear();
     meet_point = meet_point.invalid();
@@ -44,8 +42,6 @@ struct a_star_bi {
     expanded_.clear();
     start_loc_ = start_loc;
     end_loc_ = end_loc;
-    start_ = start;
-    end_ = end;
   }
 
   cost_t heuristic(label const l, ways const& w, location const& loc) {
@@ -56,7 +52,7 @@ struct a_star_bi {
     auto const dx = node_coord.x_ - loc_coord.x_;
     auto const dy = node_coord.y_ - loc_coord.y_;
 
-    auto const dist = newtonSqrt(dx * dx + dy * dy);
+    auto const dist = std::sqrt(dx * dx + dy * dy);
 
     return Profile::heuristic(dist);
   }
@@ -197,8 +193,6 @@ struct a_star_bi {
   std::vector<node_h> minHeap2_;
   location start_loc_;
   location end_loc_;
-  match_t start_;
-  match_t end_;
   hash_set<node> expanded_;
   node meet_point;
   ankerl::unordered_dense::map<key, entry, hash> cost1_;
