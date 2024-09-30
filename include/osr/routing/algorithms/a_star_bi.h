@@ -17,7 +17,11 @@ struct a_star_bi {
     cost_t operator()(node_h const& n) { return n.cost + n.heuristic; }
   };
 
-  void add(label const l, ways const& w, location const& loc, cost_map& cost, dial<node_h, get_bucket>& d) {
+  void add(label const l,
+           ways const& w,
+           location const& loc,
+           cost_map& cost,
+           dial<node_h, get_bucket>& d) {
     if (cost[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                             node::invalid())) {
       d.push(node_h{l, 0, heuristic(l, w, loc)});
@@ -34,9 +38,7 @@ struct a_star_bi {
 
   void clear_mp() { meet_point = meet_point.invalid(); }
 
-  void reset(cost_t max,
-             location const& start_loc,
-             location const& end_loc) {
+  void reset(cost_t max, location const& start_loc, location const& end_loc) {
     pq1_.clear();
     pq2_.clear();
     pq1_.n_buckets(max + 1U);
@@ -92,7 +94,6 @@ struct a_star_bi {
     return cost1 + cost2;
   }
 
-
   template <direction SearchDir, bool WithBlocked, typename fn>
   std::optional<node> run(ways const& w,
                           ways::routing const& r,
@@ -122,14 +123,13 @@ struct a_star_bi {
             auto next = label{neighbor, static_cast<cost_t>(total)};
             next.track(l, r, way, neighbor.get_node());
             node_h next_h = node_h{next, next.cost_, heuristic(next, w, loc)};
-            if(next_h.cost + next_h.heuristic < max) {
+            if (next_h.cost + next_h.heuristic < max) {
               d.push(next_h);
             }
           }
         });
     return curr;
   }
-
 
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
@@ -145,13 +145,11 @@ struct a_star_bi {
 
       auto curr1 = run<SearchDir, WithBlocked>(
           w, r, max, blocked, pq1_, cost1_,
-          [this](auto curr) { return get_cost_from_start(curr); },
-          end_loc_);
+          [this](auto curr) { return get_cost_from_start(curr); }, end_loc_);
 
       auto curr2 = run<opposite(SearchDir), WithBlocked>(
           w, r, max, blocked, pq2_, cost2_,
-          [this](auto curr) { return get_cost_from_end(curr); },
-          start_loc_);
+          [this](auto curr) { return get_cost_from_end(curr); }, start_loc_);
 
       if (curr1 != std::nullopt) {
         if (!expanded_.contains(curr1.value().n_)) {
@@ -177,7 +175,6 @@ struct a_star_bi {
     }
   }
 
-
   void run(ways const& w,
            ways::routing const& r,
            cost_t const max,
@@ -202,7 +199,6 @@ struct a_star_bi {
   node meet_point;
   ankerl::unordered_dense::map<key, entry, hash> cost1_;
   ankerl::unordered_dense::map<key, entry, hash> cost2_;
-
 };
 
 }  // namespace osr

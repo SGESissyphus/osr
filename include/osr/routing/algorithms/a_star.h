@@ -47,15 +47,15 @@ struct a_star {
     return Profile::heuristic(dist);
   };
 
-/*double newtonSqrt(double x) {
-    double x1 = x;
-    double x2 = x / 2;
-    while (std::abs(x1 - x2) >= 0.0001) {
-      x1 = x2;
-      x2 = (x1 + x / x1) / 2;
-    }
-    return x2;
-  }*/
+  /*double newtonSqrt(double x) {
+      double x1 = x;
+      double x2 = x / 2;
+      while (std::abs(x1 - x2) >= 0.0001) {
+        x1 = x2;
+        x2 = (x1 + x / x1) / 2;
+      }
+      return x2;
+    }*/
 
   struct node_h {
     cost_t priority() const {
@@ -80,7 +80,6 @@ struct a_star {
     auto const it = cost_.find(n.get_key());
     return it != end(cost_) ? it->second.cost(n) : kInfeasible;
   }
-
 
   template <direction SearchDir, bool WithBlocked>
   void run(ways const& w,
@@ -118,7 +117,6 @@ struct a_star {
           r, curr, blocked,
           [&](node const neighbor, std::uint32_t const cost, distance_t,
               way_idx_t const way, std::uint16_t, std::uint16_t) {
-
             auto const total = l.cost() + cost;
             if (total < max &&
                 cost_[neighbor.get_key()].update(
@@ -126,7 +124,7 @@ struct a_star {
               auto next = label{neighbor, static_cast<cost_t>(total)};
               next.track(l, r, way, neighbor.get_node());
               node_h next_h = node_h{next, next.cost_, heuristic(next, w)};
-              if(next_h.cost + next_h.heuristic < max){
+              if (next_h.cost + next_h.heuristic < max) {
                 pq_.push(next_h);
               }
             }

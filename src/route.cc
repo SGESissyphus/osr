@@ -203,8 +203,9 @@ path reconstruct_a_bi(ways const& w,
     if (pred.has_value()) {
       auto const expected_cost =
           static_cast<cost_t>(e.cost(backward_n) - a.get_cost_from_end(*pred));
-      backward_dist += add_path<Profile>(w, *w.r_, blocked, *pred, backward_n,
-                                         expected_cost, backward_segments, opposite(dir));
+      backward_dist +=
+          add_path<Profile>(w, *w.r_, blocked, *pred, backward_n, expected_cost,
+                            backward_segments, opposite(dir));
     } else {
       break;
     }
@@ -499,8 +500,7 @@ std::optional<path> route(ways const& w,
                           bitvec<node_idx_t> const* blocked) {
   auto from_match =
       l.match<Profile>(from, false, dir, max_match_distance, blocked);
-  auto to_match =
-      l.match<Profile>(to, true, dir, max_match_distance, blocked);
+  auto to_match = l.match<Profile>(to, true, dir, max_match_distance, blocked);
 
   if (from_match.empty() || to_match.empty()) {
     return std::nullopt;

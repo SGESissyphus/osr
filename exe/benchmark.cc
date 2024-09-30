@@ -116,8 +116,7 @@ int main(int argc, char const* argv[]) {
       if (opt.algorithm_ == "astar") {
         auto a_star_routing = a_star<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
-          auto local_j =
-              j.fetch_add(2U);
+          auto local_j = j.fetch_add(2U);
 
           if (local_j + 1 >= locations.size()) {
             break;
@@ -139,9 +138,7 @@ int main(int argc, char const* argv[]) {
       } else if (opt.algorithm_ == "bidir") {
         auto b = a_star_bi<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
-          auto local_j =
-              j.fetch_add(2U);
-
+          auto local_j = j.fetch_add(2U);
 
           if (local_j + 1 >= locations.size()) {
             break;
@@ -163,8 +160,7 @@ int main(int argc, char const* argv[]) {
       } else {
         auto d = dijkstra<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
-          auto local_j =
-              j.fetch_add(2U);
+          auto local_j = j.fetch_add(2U);
 
           if (local_j + 1 >= locations.size()) {
             break;
