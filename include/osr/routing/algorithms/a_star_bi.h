@@ -50,6 +50,15 @@ struct a_star_bi {
     expanded_.clear();
     start_loc_ = start_loc;
     end_loc_ = end_loc;
+
+    auto const start_coord = geo::latlng_to_merc(start_loc.pos_);
+    auto const end_coord = geo::latlng_to_merc(end_loc.pos_);
+
+    auto const dx = start_coord.x_ - end_coord.x_;
+    auto const dy = start_coord.y_ - end_coord.y_;
+    auto const dist = std::sqrt(dx * dx + dy * dy);
+
+    PI = Profile::heuristic(dist) / 2;
   }
 
   cost_t heuristic(label const l, ways const& w, location const& loc) {
@@ -62,7 +71,17 @@ struct a_star_bi {
 
     auto const dist = std::sqrt(dx * dx + dy * dy);
 
-    return Profile::heuristic(dist);
+    auto const other_loc = loc == start_loc_ ? end_loc_ : start_loc_;
+    auto const other_coord = geo::latlng_to_merc(other_loc.pos_);
+
+    auto const other_dx = node_coord.x_ - other_coord.x_;
+    auto const other_dy = node_coord.y_ - other_coord.y_;
+
+    auto const other_dist =
+        std::sqrt(other_dx * other_dx + other_dy * other_dy);
+
+    return 0.5 * (Profile::heuristic(dist) + Profile::heuristic(other_dist)) +
+           PI;
   }
 
   /*double newtonSqrt(double x) {
@@ -137,11 +156,18 @@ struct a_star_bi {
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
 
-    auto buffer = 750;
-    bool found = false;
     auto best_cost = kInfeasible;
+    auto next_item1 = pq1_.buckets_[pq1_.get_next_bucket()].back();
+    auto next_item2 = pq2_.buckets_[pq2_.get_next_bucket()].back();
 
-    while (!pq1_.empty() && !pq2_.empty() && buffer > 0) {
+    auto top_f = next_item1.priority();
+    auto top_r = next_item2.priority();
+
+    while (
+        !pq1_.empty() && !pq2_.empty() &&
+        (top_f + top_r <
+         best_cost +
+             PI * 2)) {  // This is the correct Dijkstra's termination condition
 
       auto curr1 = run<SearchDir, WithBlocked>(
           w, r, max, blocked, pq1_, cost1_,
@@ -157,7 +183,6 @@ struct a_star_bi {
         } else if (get_cost_to_mp(curr1.value()) < best_cost) {
           meet_point = curr1.value();
           best_cost = get_cost_to_mp(curr1.value());
-          found = true;
         }
       }
       if (curr2 != std::nullopt) {
@@ -166,12 +191,11 @@ struct a_star_bi {
         } else if (get_cost_to_mp(curr2.value()) < best_cost) {
           meet_point = curr2.value();
           best_cost = get_cost_to_mp(curr2.value());
-          found = true;
         }
       }
-      if (found) {
-        buffer--;
-      }
+
+      top_f = pq1_.buckets_[pq1_.get_next_bucket()].back().priority();
+      top_r = pq2_.buckets_[pq2_.get_next_bucket()].back().priority();
     }
   }
 
@@ -199,6 +223,7 @@ struct a_star_bi {
   node meet_point;
   ankerl::unordered_dense::map<key, entry, hash> cost1_;
   ankerl::unordered_dense::map<key, entry, hash> cost2_;
+  cost_t PI;
 };
 
 }  // namespace osr
