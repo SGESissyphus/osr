@@ -241,10 +241,61 @@ path reconstruct_a_bi(ways const& w,
   return p;
 }
 
-template <typename Profile, typename Algorithm>
+template <typename Profile>
+path reconstruct_a(ways const& w,
+                   bitvec<node_idx_t> const* blocked,
+                   a_star<Profile> const& a,
+                   way_candidate const& start,
+                   node_candidate const& dest,
+                   typename Profile::node const dest_node,
+                   cost_t const cost,
+                   direction const dir) {
+  auto n = dest_node;
+  auto segments = std::vector<path::segment>{{.polyline_ = dest.path_,
+                                              .from_level_ = dest.lvl_,
+                                              .to_level_ = dest.lvl_,
+                                              .from_ = node_idx_t::invalid(),
+                                              .to_ = node_idx_t::invalid(),
+                                              .way_ = way_idx_t::invalid()}};
+  auto dist = 0.0;
+  while (true) {
+    auto const& e = a.cost_.at(n.get_key());
+    auto const pred = e.pred(n);
+    if (pred.has_value()) {
+      auto const expected_cost =
+          static_cast<cost_t>(e.cost(n) - a.get_cost(*pred));
+      dist += add_path<Profile>(w, *w.r_, blocked, *pred, n, expected_cost,
+                                segments, dir);
+    } else {
+      break;
+    }
+    n = *pred;
+  }
+
+  auto const& start_node =
+      n.get_node() == start.left_.node_ ? start.left_ : start.right_;
+  segments.push_back(
+      {.polyline_ = start_node.path_,
+       .from_level_ = start_node.lvl_,
+       .to_level_ = start_node.lvl_,
+       .from_ =
+           dir == direction::kBackward ? n.get_node() : node_idx_t::invalid(),
+       .to_ = dir == direction::kForward ? n.get_node() : node_idx_t::invalid(),
+       .way_ = way_idx_t::invalid(),
+       .cost_ = kInfeasible,
+       .dist_ = 0});
+  std::reverse(begin(segments), end(segments));
+  auto p = path{.cost_ = cost,
+                .dist_ = start_node.dist_to_node_ + dist + dest.dist_to_node_,
+                .segments_ = segments};
+  a.cost_.at(dest_node.get_key()).write(dest_node, p);
+  return p;
+}
+
+template <typename Profile>
 path reconstruct(ways const& w,
                  bitvec<node_idx_t> const* blocked,
-                 Algorithm const& d,
+                 dijkstra<Profile> const& d,
                  way_candidate const& start,
                  node_candidate const& dest,
                  typename Profile::node const dest_node,
@@ -470,7 +521,7 @@ std::optional<path> route(ways const& w,
                                     });
       }
     }
-    if (a.minHeap1_.empty()) {
+    if (a.pq1_.empty()) {
       continue;
     }
     for (auto const& end : to_match) {
@@ -482,7 +533,7 @@ std::optional<path> route(ways const& w,
                                       });
         }
       }
-      if (a.minHeap2_.empty()) {
+      if (a.pq2_.empty()) {
         continue;
       }
       a.clear_mp();
@@ -547,8 +598,8 @@ std::optional<path> route(ways const& w,
 
     if (c.has_value()) {
       auto const [nc, wc, node, p] = *c;
-      return reconstruct<Profile>(w, blocked, a, start, *nc, node, p.cost_,
-                                  dir);
+      return reconstruct_a<Profile>(w, blocked, a, start, *nc, node, p.cost_,
+                                    dir);
     }
   }
   return std::nullopt;
@@ -605,6 +656,69 @@ std::optional<path> route(ways const& w,
 
   return std::nullopt;
 }
+
+/*template <typename Profile>
+std::vector<std::optional<path>> route(
+    ways const& w,
+    lookup const& l,
+    a_star<Profile>& a,
+    location const& from,
+    std::vector<location> const& to,
+    cost_t const max,
+    direction const dir,
+    double const max_match_distance,
+    bitvec<node_idx_t> const* blocked,
+    std::function<bool(path const&)> const& do_reconstruct) {
+  auto const from_match =
+      l.match<Profile>(from, false, dir, max_match_distance, blocked);
+  auto const to_match = utl::to_vec(to, [&](auto&& x) {
+    return l.match<Profile>(x, true, dir, max_match_distance, blocked);
+  });
+
+  auto result = std::vector<std::optional<path>>{};
+  result.resize(to.size());
+
+  if (from_match.empty()) {
+    return result;
+  }
+
+  a.reset(max, to, to_match);
+  for (auto const& mp : from_match) {
+    for (auto const* nc : {&mp.left_, &mp.right_}) {
+      if (nc->valid() && nc->cost_ < max) {
+        Profile::resolve_start_node(*w.r_, mp.way_, nc->node_, from.lvl_,
+                                    dir, [&](auto const node) {
+                                      a.add_start({node, nc->cost_});
+                                    });
+      }
+    }
+
+    a.run(w, *w.r_, max, blocked, dir);
+
+    auto found = 0U;
+    for (auto const [m, t, r] : utl::zip(to_match, to, result)) {
+      if (r.has_value()) {
+        ++found;
+      } else if (auto const direct = try_direct(from, t);
+direct.has_value()) { r = direct; } else { auto const c = best_candidate(w,
+a, t.lvl_, m, max, dir); if (c.has_value()) { auto [nc, wc, n, p] = *c; if
+(do_reconstruct(p)) { p = reconstruct<Profile>(w, blocked, a, mp, *nc, n,
+p.cost_, dir);
+          }
+          r = std::make_optional(p);
+          ++found;
+        }
+      }
+    }
+
+    if (found == result.size()) {
+      return result;
+    }
+  }
+
+  return result;
+}
+*/
 
 template <typename Profile>
 std::vector<std::optional<path>> route(

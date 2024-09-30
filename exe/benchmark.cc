@@ -50,22 +50,18 @@ public:
 std::vector<location> parse_locations_from_file(const fs::path file_name) {
   std::vector<location> locations;
 
-  // Read the entire JSON file into a string
   std::ifstream input_file(file_name);
   if (!input_file.is_open()) {
     std::cerr << "Could not open the file!" << std::endl;
-    return locations;  // Return an empty vector if file can't be opened
+    return locations;
   }
 
   std::string json_str((std::istreambuf_iterator<char>(input_file)),
                        std::istreambuf_iterator<char>());
 
-  // Parse the JSON content using Boost.JSON
   json::value json_data = json::parse(json_str);
 
-  // Loop through the queries and extract locations
   for (const auto& query : json_data.as_object().at("queries").as_array()) {
-    // Parse start point
     location start_loc;
     start_loc.pos_.lat_ =
         query.as_object().at("start_point").as_object().at("lat").as_double();
@@ -73,7 +69,6 @@ std::vector<location> parse_locations_from_file(const fs::path file_name) {
         query.as_object().at("start_point").as_object().at("lng").as_double();
     locations.push_back(start_loc);
 
-    // Parse end point
     location end_loc;
     end_loc.pos_.lat_ =
         query.as_object().at("end_point").as_object().at("lat").as_double();
@@ -81,7 +76,7 @@ std::vector<location> parse_locations_from_file(const fs::path file_name) {
         query.as_object().at("end_point").as_object().at("lng").as_double();
     locations.push_back(end_loc);
   }
-  return locations;  // Return the vector of locations
+  return locations;
 }
 
 int main(int argc, char const* argv[]) {
@@ -122,11 +117,10 @@ int main(int argc, char const* argv[]) {
         auto a_star_routing = a_star<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
           auto local_j =
-              j.fetch_add(2U);  // Fetch and increment j by 2 for each thread
+              j.fetch_add(2U);
 
-          // Read two consecutive entries from locations for 'from' and 'to'
           if (local_j + 1 >= locations.size()) {
-            break;  // Prevent out-of-bounds access
+            break;
           }
 
           location from = locations[local_j];
@@ -146,11 +140,11 @@ int main(int argc, char const* argv[]) {
         auto b = a_star_bi<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
           auto local_j =
-              j.fetch_add(2U);  // Fetch and increment j by 2 for each thread
+              j.fetch_add(2U);
 
-          // Read two consecutive entries from locations for 'from' and 'to'
+
           if (local_j + 1 >= locations.size()) {
-            break;  // Prevent out-of-bounds access
+            break;
           }
 
           location from = locations[local_j];
@@ -170,11 +164,10 @@ int main(int argc, char const* argv[]) {
         auto d = dijkstra<car>{};
         while (i.fetch_add(1U) < opt.n_queries_) {
           auto local_j =
-              j.fetch_add(2U);  // Fetch and increment j by 2 for each thread
+              j.fetch_add(2U);
 
-          // Read two consecutive entries from locations for 'from' and 'to'
           if (local_j + 1 >= locations.size()) {
-            break;  // Prevent out-of-bounds access
+            break;
           }
 
           location from = locations[local_j];
