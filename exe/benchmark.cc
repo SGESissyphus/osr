@@ -34,17 +34,14 @@ public:
     param(threads_, "threads,t", "Number of routing threads");
     param(n_queries_, "n", "Number of queries");
     param(max_dist_, "r", "Radius");
-    param(algorithm_, "algorithm",
-          "Routing algorithm (dijkstra, astar, bidir)");
     param(location_file_, "locations", "Path to file with locations to parse");
   }
 
-  fs::path data_dir_{"osr"};
+  fs::path data_dir_{"osr-hessen"};
   unsigned n_queries_{50};
   unsigned max_dist_{1200};
   unsigned threads_{std::thread::hardware_concurrency()};
-  std::string algorithm_{"dijkstra"};
-  fs::path location_file_{"/locations.json"};
+  fs::path location_file_{"locations.json"};
 };
 
 std::vector<location> parse_locations_from_file(const fs::path file_name) {
@@ -105,79 +102,73 @@ int main(int argc, char const* argv[]) {
   bitvec<node_idx_t> const* blocked = nullptr;
   auto const locations = parse_locations_from_file(opt.location_file_);
 
-  auto timer = utl::scoped_timer{"timer"};
-  auto threads = std::vector<std::thread>(std::max(1U, opt.threads_));
-  auto i = std::atomic_size_t{0U};
-  auto j = std::atomic_size_t{0U};
+  std::atomic_size_t i{0U}, j{0U};
+
+  std::vector<std::thread> threads(std::max(1U, opt.threads_));
+
+  std::mutex print_mutex;  // To synchronize output
+
   for (auto& t : threads) {
     t = std::thread([&]() {
-      auto h = cista::BASE_HASH;
-      auto n1 = 0U;
-      if (opt.algorithm_ == "astar") {
-        auto a_star_routing = a_star<car>{};
-        while (i.fetch_add(1U) < opt.n_queries_) {
-          auto local_j = j.fetch_add(2U);
+      while (i.fetch_add(1U) < opt.n_queries_) {
+        auto local_j = j.fetch_add(2U);
 
-          if (local_j + 1 >= locations.size()) {
-            break;
-          }
+        if (local_j + 1 >= locations.size()) {
+          break;
+        }
 
-          location from = locations[local_j];
-          from.lvl_ = level_t::invalid();
+        location from = locations[local_j];
+        from.lvl_ = level_t::invalid();
 
-          location to = locations[local_j + 1];
-          to.lvl_ = level_t::invalid();
+        location to = locations[local_j + 1];
+        to.lvl_ = level_t::invalid();
 
+        // Dijkstra timing
+        double dijkstra_time = 0.0, astar_time = 0.0, bidir_time = 0.0;
+        {
+          auto start_time = std::chrono::steady_clock::now();
+          auto dijkstra_routing = dijkstra<car>{};
           auto const from_match =
               l.match<car>(from, false, direction::kForward, 100, blocked);
           auto const to_match =
               l.match<car>(to, true, direction::kForward, 100, blocked);
-          auto p = route(w, l, a_star_routing, from, to, opt.max_dist_,
+          auto p = route(w, l, dijkstra_routing, from, to, opt.max_dist_,
                          direction::kForward, 100, blocked);
+          auto end_time = std::chrono::steady_clock::now();
+          dijkstra_time = std::chrono::duration<double, std::milli>(end_time - start_time).count();
         }
-      } else if (opt.algorithm_ == "bidir") {
-        auto b = a_star_bi<car>{};
-        while (i.fetch_add(1U) < opt.n_queries_) {
-          auto local_j = j.fetch_add(2U);
 
-          if (local_j + 1 >= locations.size()) {
-            break;
-          }
-
-          location from = locations[local_j];
-          from.lvl_ = level_t::invalid();
-
-          location to = locations[local_j + 1];
-          to.lvl_ = level_t::invalid();
-
+        // A* timing
+        {
+          auto start_time = std::chrono::steady_clock::now();
+          auto astar_routing = a_star<car>{};
           auto const from_match =
               l.match<car>(from, false, direction::kForward, 100, blocked);
           auto const to_match =
               l.match<car>(to, true, direction::kForward, 100, blocked);
-          auto p = route(w, l, b, from, to, opt.max_dist_, direction::kForward,
-                         100, blocked);
+          auto p = route(w, l, astar_routing, from, to, opt.max_dist_,
+                         direction::kForward, 100, blocked);
+          auto end_time = std::chrono::steady_clock::now();
+          astar_time = std::chrono::duration<double, std::milli>(end_time - start_time).count();
         }
-      } else {
-        auto d = dijkstra<car>{};
-        while (i.fetch_add(1U) < opt.n_queries_) {
-          auto local_j = j.fetch_add(2U);
 
-          if (local_j + 1 >= locations.size()) {
-            break;
-          }
-
-          location from = locations[local_j];
-          from.lvl_ = level_t::invalid();
-
-          location to = locations[local_j + 1];
-          to.lvl_ = level_t::invalid();
-
+        // Bidirectional A* timing
+        {
+          auto start_time = std::chrono::steady_clock::now();
+          auto bidir_routing = a_star_bi<car>{};
           auto const from_match =
               l.match<car>(from, false, direction::kForward, 100, blocked);
           auto const to_match =
               l.match<car>(to, true, direction::kForward, 100, blocked);
-          auto p = route(w, l, d, from, to, opt.max_dist_, direction::kForward,
-                         100, blocked);
+          auto p = route(w, l, bidir_routing, from, to, opt.max_dist_,
+                         direction::kForward, 100, blocked);
+          auto end_time = std::chrono::steady_clock::now();
+          bidir_time = std::chrono::duration<double, std::milli>(end_time - start_time).count();
+        }
+        {
+          std::lock_guard<std::mutex> lock(print_mutex);
+          fmt::println("Query {}: Dijkstra Time = {} ms, A* Time = {} ms, Bidirectional A* Time = {} ms",
+                       local_j / 2, dijkstra_time, astar_time, bidir_time);
         }
       }
     });
@@ -186,4 +177,6 @@ int main(int argc, char const* argv[]) {
   for (auto& t : threads) {
     t.join();
   }
+
+  return 0;
 }

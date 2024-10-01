@@ -160,10 +160,12 @@ path reconstruct_a_bi(ways const& w,
                       cost_t const cost,
                       direction const dir) {
   auto forward_n = a.meet_point;
+  //std::cout << "-----meet point " << static_cast<uint32_t>(a.meet_point.n_) << std::endl;
   auto forward_segments = std::vector<path::segment>{};
   auto forward_dist = 0.0;
 
   while (true) {
+    //std::cout << "-----node to reconstruct in forward " << static_cast<uint32_t>(forward_n.n_) << std::endl;
     auto const& e = a.cost1_.at(forward_n.get_key());
     auto const pred = e.pred(forward_n);
     if (pred.has_value()) {
@@ -197,6 +199,7 @@ path reconstruct_a_bi(ways const& w,
   auto backward_dist = 0.0;
 
   while (true) {
+    //std::cout << "-----node to reconstruct in backward " << static_cast<uint32_t>(backward_n.n_) << std::endl;
     auto const& e = a.cost2_.at(backward_n.get_key());
 
     auto const pred = e.pred(backward_n);

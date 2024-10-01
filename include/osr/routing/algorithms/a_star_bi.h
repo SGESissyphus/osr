@@ -24,7 +24,7 @@ struct a_star_bi {
            dial<node_h, get_bucket>& d) {
     if (cost[l.get_node().get_key()].update(l, l.get_node(), l.cost(),
                                             node::invalid())) {
-      d.push(node_h{l, 0, heuristic(l, w, loc)});
+      d.push(node_h{l, l.cost_, heuristic(l, w, loc)});
     }
   }
 
@@ -80,7 +80,7 @@ struct a_star_bi {
     auto const other_dist =
         std::sqrt(other_dx * other_dx + other_dy * other_dy);
 
-    return 0.5 * (Profile::heuristic(dist) + Profile::heuristic(other_dist)) +
+    return Profile::heuristic(0.5 * (dist) - (other_dist)) +
            PI;
   }
 
@@ -156,7 +156,7 @@ struct a_star_bi {
            cost_t const max,
            bitvec<node_idx_t> const* blocked) {
 
-    auto best_cost = kInfeasible;
+    auto best_cost = kInfeasible - PI*2;
     auto next_item1 = pq1_.buckets_[pq1_.get_next_bucket()].back();
     auto next_item2 = pq2_.buckets_[pq2_.get_next_bucket()].back();
 
@@ -167,7 +167,7 @@ struct a_star_bi {
         !pq1_.empty() && !pq2_.empty() &&
         (top_f + top_r <
          best_cost +
-             PI * 2)) {  // This is the correct Dijkstra's termination condition
+             PI * 2 || best_cost == kInfeasible)) {
 
       auto curr1 = run<SearchDir, WithBlocked>(
           w, r, max, blocked, pq1_, cost1_,
@@ -179,23 +179,32 @@ struct a_star_bi {
 
       if (curr1 != std::nullopt) {
         if (!expanded_.contains(curr1.value().n_)) {
+          //std::cout << "pq1 expands " << static_cast<uint32_t>(curr1.value().n_) << std::endl;
           expanded_.emplace(curr1.value().n_);
         } else if (get_cost_to_mp(curr1.value()) < best_cost) {
           meet_point = curr1.value();
+          //std::cout << "-----meet point has been found by pq1 " << static_cast<uint32_t>(meet_point.n_) << std::endl;
           best_cost = get_cost_to_mp(curr1.value());
+          //std::cout << "best cost " << static_cast<uint32_t>(best_cost) << std::endl;
         }
       }
       if (curr2 != std::nullopt) {
         if (!expanded_.contains(curr2.value().n_)) {
+          //std::cout << "pq2 expands " << static_cast<uint32_t>(curr2.value().n_) << std::endl;
           expanded_.emplace(curr2.value().n_);
         } else if (get_cost_to_mp(curr2.value()) < best_cost) {
           meet_point = curr2.value();
+          //std::cout << "-----meet point has been found by pq2 " << static_cast<uint32_t>(meet_point.n_) << std::endl;
           best_cost = get_cost_to_mp(curr2.value());
+          //std::cout << "best cost " << static_cast<uint32_t>(best_cost) << std::endl;
         }
       }
 
       top_f = pq1_.buckets_[pq1_.get_next_bucket()].back().priority();
+      //std::cout << "top_f - " << static_cast<uint32_t>(top_f) << std::endl;
       top_r = pq2_.buckets_[pq2_.get_next_bucket()].back().priority();
+      //std::cout << "top_r - " << static_cast<uint32_t>(top_r) << std::endl;
+      //std::cout << "best cost " << static_cast<uint32_t>(best_cost) << std::endl;
     }
   }
 
