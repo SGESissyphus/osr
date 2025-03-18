@@ -43,6 +43,17 @@ struct bidirectional{
   }
 
   void clear_mp() {meet_point = meet_point.invalid();}
+  
+  bool is_meetpoint_transition_allowed(ways const& w,
+                                      typename Profile::node const& forward,
+                                      typename Profile::node const& reverse) {
+    if constexpr (requires { forward.way_; reverse.way_; }) {
+      return !w.r_->is_restricted(forward.get_node(), forward.way_, reverse.way_,
+                                direction::kForward);
+    } else {
+      return true;
+    }
+  }
 
   void reset(cost_t max, location const& start_loc, location const& end_loc){
     pq1_.clear();
@@ -198,7 +209,20 @@ struct bidirectional{
       auto curr2 = run<opposite(SearchDir), WithBlocked>(w, r, max, blocked, sharing, pq2_, cost2_, [this](auto curr){return get_cost_from_end(curr);}, start_loc_);
       // When a node is found that is already expanded from the other search, we have a meeting point
       if (curr1 != std::nullopt){
-        if (expanded_end_.contains(curr1.value().n_)) {
+        // Check if any node with the same node index exists in expanded_end_
+        bool found_matching_node = false;
+        node end_node;
+        
+        // Iterate through expanded_end_ to find nodes with matching node index
+        for (const auto& e_node : expanded_end_) {
+            if (e_node.n_ == curr1.value().n_) {
+                found_matching_node = true;
+                end_node = e_node;
+                break;
+            }
+        }
+        
+        if (found_matching_node) {
           if constexpr (kDebug) {
             std::cout << "  potential MEETPOINT found by start ";
             curr1.value().print(std::cout, w);
@@ -206,10 +230,24 @@ struct bidirectional{
           if (cost2_.find(curr1.value().get_key()) != cost2_.end()) {
             // This node has been expanded from both directions and has entries in both cost maps
             if (get_cost_to_mp(curr1.value()) < best_cost) {
-              meet_point = curr1.value();
-              best_cost = get_cost_to_mp(curr1.value());
-              if constexpr (kDebug) {
-                std::cout << " -> ACCEPTED\n";
+              // Check if the transition between ways is allowed at this node
+              // Check if transition from forward to backward way is allowed at this node
+              if (is_meetpoint_transition_allowed(w, curr1.value(), end_node)) {
+                meet_point = curr1.value();
+                best_cost = get_cost_to_mp(curr1.value());
+                if constexpr (kDebug) {
+                  std::cout << " -> ACCEPTED (transition from way " 
+                            << w.way_osm_idx_[w.r_->node_ways_[curr1.value().n_][curr1.value().way_]]
+                            << " to way " 
+                            << w.way_osm_idx_[w.r_->node_ways_[end_node.n_][end_node.way_]]
+                            << ")\n";
+                }
+              } else if constexpr (kDebug) {
+                std::cout << " -> RESTRICTED TRANSITION (from way " 
+                          << w.way_osm_idx_[w.r_->node_ways_[curr1.value().n_][curr1.value().way_]]
+                          << " to way " 
+                          << w.way_osm_idx_[w.r_->node_ways_[end_node.n_][end_node.way_]]
+                          << ")\n";
               }
             } else if constexpr (kDebug) {
               std::cout << " -> DOMINATED\n";
@@ -219,10 +257,24 @@ struct bidirectional{
           }
 
         }
-        expanded_start_.emplace(curr1.value().n_);
+        // Store the complete node object with way information
+        expanded_start_.emplace(curr1.value());
       }
       if (curr2 != std::nullopt) {
-        if (expanded_start_.contains(curr2.value().n_)) {
+        // Check if any node with the same node index exists in expanded_start_
+        bool found_matching_node = false;
+        node start_node;
+        
+        // Iterate through expanded_start_ to find nodes with matching node index
+        for (const auto& s_node : expanded_start_) {
+            if (s_node.n_ == curr2.value().n_) {
+                found_matching_node = true;
+                start_node = s_node;
+                break;
+            }
+        }
+        
+        if (found_matching_node) {
           if constexpr (kDebug) {
             std::cout << "  potential MEETPOINT found by end ";
             curr2.value().print(std::cout, w);
@@ -230,10 +282,24 @@ struct bidirectional{
           if (cost1_.find(curr2.value().get_key()) != cost1_.end()) {
             // This node has been expanded from both directions and has entries in both cost maps
             if (get_cost_to_mp(curr2.value()) < best_cost) {
-              meet_point = curr2.value();
-              best_cost = get_cost_to_mp(curr2.value());
-              if constexpr (kDebug) {
-                std::cout << " -> ACCEPTED\n";
+              // Check if the transition between ways is allowed at this node
+              // Check if transition from start to end way is allowed at this node
+              if (is_meetpoint_transition_allowed(w, start_node, curr2.value())) {
+                meet_point = curr2.value();
+                best_cost = get_cost_to_mp(curr2.value());
+                if constexpr (kDebug) {
+                  std::cout << " -> ACCEPTED (transition from way " 
+                            << w.way_osm_idx_[w.r_->node_ways_[start_node.n_][start_node.way_]]
+                            << " to way " 
+                            << w.way_osm_idx_[w.r_->node_ways_[curr2.value().n_][curr2.value().way_]]
+                            << ")\n";
+                }
+              } else if constexpr (kDebug) {
+                std::cout << " -> RESTRICTED TRANSITION (from way " 
+                          << w.way_osm_idx_[w.r_->node_ways_[start_node.n_][start_node.way_]]
+                          << " to way " 
+                          << w.way_osm_idx_[w.r_->node_ways_[curr2.value().n_][curr2.value().way_]]
+                          << ")\n";
               }
             } else if constexpr (kDebug) {
               std::cout << " -> DOMINATED\n";
@@ -242,7 +308,8 @@ struct bidirectional{
             std::cout << " -> DOMINATED\n";
           }
         }
-        expanded_end_.emplace(curr2.value().n_);
+        // Store the complete node object with way information
+        expanded_end_.emplace(curr2.value());
       }
     }
   }
@@ -268,8 +335,9 @@ struct bidirectional{
   dial<node_h, get_bucket> pq2_{get_bucket{}};
   location start_loc_;
   location end_loc_;
-  hash_set<node_idx_t> expanded_start_;
-  hash_set<node_idx_t> expanded_end_;
+  // Store the complete node objects (including way information) instead of just node indices
+  hash_set<node> expanded_start_;
+  hash_set<node> expanded_end_;
   node meet_point;
   ankerl::unordered_dense::map<key, entry, hash> cost1_;
   ankerl::unordered_dense::map<key, entry, hash> cost2_;
